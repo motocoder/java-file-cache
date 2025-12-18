@@ -32,8 +32,10 @@ public class SegmentedHashDataManager implements HashDataManager<byte [], byte [
     @Override
     public long setBlobs(long blobIndex, Set<Pair<byte[], byte[]>> blobs) throws WriteFailure, ReadFailure {
 
-        //delete the previous item
-        segmentedFile.writeState(blobIndex, SegmentedFile.FREE_STATE);
+        if(blobIndex >= 0) {
+            //delete the previous item
+            segmentedFile.writeState(blobIndex, SegmentedFile.FREE_STATE);
+        }
 
         final byte [] pairData = getPairData(blobs);
 

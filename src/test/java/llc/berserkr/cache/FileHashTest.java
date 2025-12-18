@@ -501,69 +501,71 @@ public class FileHashTest {
 
     }
 //
-//    @Test
-//    public void testRealHashingClear() {
-//
-//        final File root = new File("./target/test-files/temp-hash/");
-//        final File tempFolder = new File("./target/test-files/temp-data");
-//        final File dataFolder = new File("./target/test-files/data/data");
-//
-//        deleteRoot(root);
-//        deleteRoot(tempFolder);
-//        deleteRoot(dataFolder);
-//
-//        final HashDataManager<String, InputStream> manager = new LoggingManager(new MemoryHashDataManager<>(dataFolder, tempFolder, new SerializingConverter<String>()));
-//
-//        final FileHash<String, InputStream> hash = new FileHash<String, InputStream>(root, manager, 1000);
-//
-//        checkFileEmpty(root);
-//
-//        final int TEST_COUNT = 100;
-//
-//        for(int i = 0; i < TEST_COUNT; i++) {
-//
-//            final ByteArrayInputStream input = new ByteArrayInputStream(String.valueOf(i).getBytes());
-//
-//            hash.put(String.valueOf(i), input);
-//
-//            final InputStream segInput = hash.get(String.valueOf(i));
-//
-//            final ByteArrayOutputStream out = new ByteArrayOutputStream();
-//
-//            try {
-//                StreamUtil.copyTo(segInput, out);
-//            }
-//            catch(IOException e) {
-//                fail();
-//            }
-//
-//            final String seg = new String(out.toByteArray());
-//
-//            assertNotNull("i not null " + i, seg);
-//
-//            assertEquals(String.valueOf(i), seg);
-//
-//        }
-//
-//        assertNull(hash.get(String.valueOf(TEST_COUNT + 1)));
-//
-//        hash.clear();
-//
-//        for(int i = 0; i < TEST_COUNT; i++) {
-//
-//            final InputStream segInput = hash.get(String.valueOf(i));
-//
-//            assertNull(segInput);
-//
-//        }
-//
-//        checkFileEmpty(root);
-//
-//        deleteRoot(root);
-//        deleteRoot(tempFolder);
-//        deleteRoot(dataFolder);
-//
-//    }
+    @Test
+    public void testRealHashingClear() throws ReadFailure, WriteFailure, IOException {
+
+        final File root = new File(cacheDir, "./temp-hash/");
+        final File tempFolder = new File(cacheDir, "./temp-data");
+        final File dataFolder = new File(cacheDir, "./segmentData");
+
+        deleteRoot(root);
+        deleteRoot(tempFolder);
+        deleteRoot(dataFolder);
+
+        dataFolder.createNewFile();
+
+        final HashDataManager<byte [], byte []> manager = new SegmentedHashDataManager(dataFolder);
+
+        final FileHash< byte [],  byte []> hash = new FileHash<byte[], byte[]>(root, manager, 1000) {
+            @Override
+            public int hashCode(byte[] bytes) {
+                return Arrays.hashCode(bytes);
+            }
+
+            @Override
+            public boolean equals(byte[] key1, byte[] key2) {
+                return Arrays.equals(key1, key2);
+            }
+        };
+
+        checkFileEmpty(root);
+
+        final int TEST_COUNT = 100;
+
+        for(int i = 0; i < TEST_COUNT; i++) {
+
+            hash.put(String.valueOf(i).getBytes(StandardCharsets.UTF_8), String.valueOf(i).getBytes(StandardCharsets.UTF_8));
+
+            final byte [] segInput = hash.get(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
+
+
+            final String seg = new String(segInput, StandardCharsets.UTF_8);
+
+            assertNotNull("i not null " + i, seg);
+
+            assertEquals(String.valueOf(i), seg);
+
+        }
+
+        assertNull(hash.get(String.valueOf(TEST_COUNT + 1).getBytes(StandardCharsets.UTF_8)));
+
+        hash.clear();
+
+        for(int i = 0; i < TEST_COUNT; i++) {
+
+            final byte [] segInput = hash.get(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
+
+            assertNull(segInput);
+
+        }
+
+        checkFileEmpty(root);
+
+        deleteRoot(root);
+        deleteRoot(tempFolder);
+        deleteRoot(dataFolder);
+
+    }
 
     @Test
     public void testManagerSegCreation() {

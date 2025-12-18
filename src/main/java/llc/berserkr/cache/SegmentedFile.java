@@ -6,8 +6,6 @@ import llc.berserkr.cache.exception.SpaceFragementedException;
 import llc.berserkr.cache.exception.WriteFailure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.awt.image.AreaAveragingScaleFilter;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -46,6 +44,36 @@ public class SegmentedFile {
             throw new IllegalArgumentException("file location must not be a directory " + root);
         }
 
+    }
+
+
+
+    /**
+     *
+     * @param address
+     * @param segment
+     * @throws ReadFailure
+     * @throws WriteFailure
+     */
+    public void write(long address, byte[] segment) throws ReadFailure, WriteFailure {
+
+        try(final RandomAccessFile random = new RandomAccessFile(root, "rws")) {
+
+            try {
+                random.seek(address + SEGMENT_LENGTH_BYTES_COUNT); //seek to the state byte of the new segment that doesn't exist yet
+                random.write(new byte[]{TRANSITIONAL_STATE});
+                random.write(intToByteArray(segment.length));//write the fill size
+                random.write(segment); //write the payload
+            }
+            catch (IOException e) {
+                throw new WriteFailure("failed to write " + e.getMessage());
+            }
+
+        } catch (FileNotFoundException e) {
+            throw new ReadFailure("file not found: " + root, e);
+        } catch (IOException e) {
+            throw new ReadFailure("file not opened " + root, e);
+        }
     }
 
     public void writeState(long address, byte state) throws WriteFailure, ReadFailure {
@@ -201,6 +229,36 @@ public class SegmentedFile {
 
     }
 
+
+
+    /**
+     * warning needs to be transactional
+     *
+     * @param address
+     * @param segmentSize
+     * @throws WriteFailure
+     * @throws ReadFailure
+     */
+    public void setSegmentSize(long address, int segmentSize) throws WriteFailure, ReadFailure {
+
+        try(final RandomAccessFile random = new RandomAccessFile(root, "rws")) {
+
+            try {
+                random.seek(address); //seek to the state byte of the new segment that doesn't exist yet
+                random.write(intToByteArray(segmentSize));
+            }
+            catch (IOException e) {
+                throw new WriteFailure("failed to write " + e.getMessage());
+            }
+
+        } catch (FileNotFoundException e) {
+            throw new ReadFailure("file not found: " + root, e);
+        } catch (IOException e) {
+            throw new ReadFailure("file not opened " + root, e);
+        }
+
+    }
+
     public byte[] readSegment(long address) throws ReadFailure {
 
         try(final RandomAccessFile random = new RandomAccessFile(root, "r")) {
@@ -302,6 +360,10 @@ public class SegmentedFile {
         }
     }
 
+    public static long bytesToLong(byte[] bytes) {
+        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getLong();
+    }
+
     public static int bytesToInt(byte [] bytes) {
         return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getInt();
     }
@@ -321,58 +383,30 @@ public class SegmentedFile {
         return buffer.array();
     }
 
-    /**
-     *
-     * @param address
-     * @param segment
-     * @throws ReadFailure
-     * @throws WriteFailure
-     */
-    public void write(long address, byte[] segment) throws ReadFailure, WriteFailure {
+    public static byte[] longToByteArray(long value) {
+        // Allocate a ByteBuffer with capacity for 4 bytes (an int)
+        ByteBuffer buffer = ByteBuffer.allocate(8);
 
-        try(final RandomAccessFile random = new RandomAccessFile(root, "rws")) {
+        // Set the byte order (e.g., BIG_ENDIAN or LITTLE_ENDIAN)
+        // BIG_ENDIAN is common for network protocols and human readability
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-            try {
-                random.seek(address + SEGMENT_LENGTH_BYTES_COUNT); //seek to the state byte of the new segment that doesn't exist yet
-                random.write(new byte[]{TRANSITIONAL_STATE});
-                random.write(intToByteArray(segment.length));//write the fill size
-                random.write(segment); //write the payload
-            }
-            catch (IOException e) {
-                throw new WriteFailure("failed to write " + e.getMessage());
-            }
+        // Put the integer into the buffer
+        buffer.putLong(value);
 
-        } catch (FileNotFoundException e) {
-            throw new ReadFailure("file not found: " + root, e);
-        } catch (IOException e) {
-            throw new ReadFailure("file not opened " + root, e);
-        }
+        // Return the byte array representation of the buffer's content
+        return buffer.array();
     }
 
-    /**
-     * warning needs to be transactional
-     *
-     * @param address
-     * @param segmentSize
-     * @throws WriteFailure
-     * @throws ReadFailure
-     */
-    public void setSegmentSize(long address, int segmentSize) throws WriteFailure, ReadFailure {
+
+    public void clear() throws ReadFailure, WriteFailure {
 
         try(final RandomAccessFile random = new RandomAccessFile(root, "rws")) {
-
-            try {
-                random.seek(address); //seek to the state byte of the new segment that doesn't exist yet
-                random.write(intToByteArray(segmentSize));
-            }
-            catch (IOException e) {
-                throw new WriteFailure("failed to write " + e.getMessage());
-            }
-
+            random.setLength(0);
         } catch (FileNotFoundException e) {
-            throw new ReadFailure("file not found: " + root, e);
+            throw new ReadFailure("file doesn't exist", e);
         } catch (IOException e) {
-            throw new ReadFailure("file not opened " + root, e);
+            throw new WriteFailure("unknown write error " + e.getMessage(), e);
         }
 
     }

@@ -1,0 +1,805 @@
+package llc.berserkr.cache;
+import llc.berserkr.cache.exception.ReadFailure;
+import llc.berserkr.cache.exception.WriteFailure;
+import org.apache.log4j.BasicConfigurator;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.*;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.*;
+import java.util.Map.Entry;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+public class FileHashTest {
+    
+    static {
+        BasicConfigurator.configure();
+    }
+    
+    private static final Logger logger = LoggerFactory.getLogger(FileHashTest.class);
+
+    public static File tempDir = new File("./file-cache-temp");
+    public static File segmentFile = new File(tempDir,"./segment");
+    public static File hashFile = new File(tempDir,"./hash");
+    private File cacheDir;
+
+    @BeforeEach
+    public void setUp() throws Exception {
+
+        tempDir.mkdirs();
+        cacheDir = new File(tempDir, "BerserkrCache");
+        cacheDir.mkdirs();
+
+        for (File file : cacheDir.listFiles()) {
+            file.delete();
+        }
+
+        if(segmentFile.exists()) {
+            segmentFile.delete();
+        }
+
+        if(segmentFile.exists()) {
+            throw new RuntimeException("Segmented file already exists");
+        }
+        segmentFile.createNewFile();
+
+        if(hashFile.exists()) {
+            hashFile.delete();
+        }
+
+        if(hashFile.exists()) {
+            throw new RuntimeException("Segmented file already exists");
+        }
+        hashFile.createNewFile();
+
+    }
+
+    @Test
+    public void testManager() {
+        
+//        final File root = new File("./target/test-files/temp-hash/");
+//        final File tempFolder = new File("./target/test-files/temp-data");
+//        final File dataFolder = new File("./target/test-files/data/data");
+//
+//        deleteRoot(root);
+//        deleteRoot(tempFolder);
+//        deleteRoot(dataFolder);
+//
+//        final FileHashDataManager<String> manager = new FileHashDataManager<String>(dataFolder, tempFolder, new SerializingConverter<String>());
+//        final Set<Entry<String, InputStream>> toSet = new HashSet<Entry<String, InputStream>>();
+//
+//        toSet.add(new DefaultEntry<String, InputStream>("key", new ByteArrayInputStream("key".getBytes())));
+//
+//        try {
+//
+//            final int setAt = manager.setBlobs(-1, toSet);
+//
+//            {
+//
+//                assertTrue(-1 != setAt);
+//
+//                final Set<Entry<String, InputStream>> justSet = manager.getBlobsAt(setAt);
+//
+//                assertNotNull(justSet);
+//                assertTrue(justSet.size() == 1);
+//
+//                final Entry<String, InputStream> first = justSet.iterator().next();
+//
+//                assertEquals(first.getKey(), "key");
+//
+//                final ByteArrayOutputStream out = new ByteArrayOutputStream();
+//
+//                try {
+//                    StreamUtil.copyTo(first.getValue(), out);
+//                }
+//                catch (IOException e) {
+//                    fail();
+//                }
+//
+//                final String keyString = out.toString();
+//
+//                assertEquals("key", keyString);
+//            }
+//
+//            logger.debug("step 2");
+//
+//            {
+//
+//                toSet.clear();
+//
+//                toSet.add(new DefaultEntry<String, InputStream>("key", new ByteArrayInputStream("key".getBytes())));
+//                toSet.add(new DefaultEntry<String, InputStream>("key2", new ByteArrayInputStream("key2".getBytes())));
+//
+//                final int setAt2 = manager.setBlobs(setAt, toSet);
+//
+//                assertTrue(setAt2 != setAt);
+//
+//                final Set<Entry<String, InputStream>> justSet2 = manager.getBlobsAt(setAt2);
+//                final Set<Entry<String, InputStream>> justSet = manager.getBlobsAt(setAt);
+//
+//                assertNull(justSet);
+//                assertNotNull(justSet2);
+//                assertTrue(justSet2.size() == 2);
+//
+//                final Set<String> keys = new HashSet<String>();
+//
+//                for(final Entry<String, InputStream> entry : justSet2) {
+//                    keys.add(entry.getKey());
+//                }
+//
+//                assertTrue(keys.contains("key"));
+//                assertTrue(keys.contains("key2"));
+//
+//                for(Entry<String, InputStream> entry : justSet2) {
+//
+//                    logger.debug("testing key " + entry.getKey());
+//
+//                    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+//
+//                    try {
+//                        StreamUtil.copyTo(entry.getValue(), out);
+//                    }
+//                    catch (IOException e) {
+//                        fail();
+//                    }
+//
+//                    final String keyString = out.toString();
+//
+//                    assertEquals(entry.getKey(), keyString);
+//
+//                    logger.debug("key passed " + entry.getKey());
+//
+//                }
+//
+//            }
+//
+//            {
+//
+//                toSet.clear();
+//
+//                toSet.add(new DefaultEntry<String, InputStream>("key", new ByteArrayInputStream("key".getBytes())));
+//
+//                final int setAt2 = manager.setBlobs(setAt, toSet);
+//
+//                assertTrue(setAt2 == setAt);
+//
+//                final Set<Entry<String, InputStream>> justSet2 = manager.getBlobsAt(setAt2);
+//
+//                assertNotNull(justSet2);
+//                assertTrue(justSet2.size() == 1);
+//
+//                final Set<String> keys = new HashSet<String>();
+//
+//                for(final Entry<String, InputStream> entry : justSet2) {
+//                    keys.add(entry.getKey());
+//                }
+//
+//                assertTrue(keys.contains("key"));
+//
+//                for(Entry<String, InputStream> entry : justSet2) {
+//
+//                    logger.debug("testing key " + entry.getKey());
+//
+//                    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+//
+//                    try {
+//                        StreamUtil.copyTo(entry.getValue(), out);
+//                    }
+//                    catch (IOException e) {
+//                        fail();
+//                    }
+//
+//                    final String keyString = out.toString();
+//
+//                    assertEquals(entry.getKey(), keyString);
+//
+//                    logger.debug("key passed " + entry.getKey());
+//
+//                }
+//
+//            }
+//
+//            logger.debug("step 3");
+//
+//            {
+//
+//                toSet.clear();
+//
+//                toSet.add(new DefaultEntry<String, InputStream>("key", new ByteArrayInputStream("key".getBytes())));
+//                toSet.add(new DefaultEntry<String, InputStream>("key2", new ByteArrayInputStream("key2".getBytes())));
+//
+//                final int setAt2 = manager.setBlobs(-1, toSet);
+//
+//                assertTrue(setAt2 != -1);
+//
+//                final Set<Entry<String, InputStream>> justSet2 = manager.getBlobsAt(setAt2);
+//
+//                assertNotNull(justSet2);
+//                assertTrue(justSet2.size() == 2);
+//
+//                final Set<String> keys = new HashSet<String>();
+//
+//                for(final Entry<String, InputStream> entry : justSet2) {
+//                    keys.add(entry.getKey());
+//                }
+//
+//                assertTrue(keys.contains("key"));
+//                assertTrue(keys.contains("key2"));
+//
+//                for(Entry<String, InputStream> entry : justSet2) {
+//
+//                    logger.debug("testing key " + entry.getKey());
+//
+//                    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+//
+//                    try {
+//                        StreamUtil.copyTo(entry.getValue(), out);
+//                    }
+//                    catch (IOException e) {
+//                        fail();
+//                    }
+//
+//                    final String keyString = out.toString();
+//
+//                    assertEquals(entry.getKey(), keyString);
+//
+//                    logger.debug("key passed " + entry.getKey());
+//
+//                }
+//
+//            }
+//
+//            logger.debug("step 5");
+//
+//            final Map<Integer, Integer> indexes = new HashMap<Integer, Integer>();
+//
+//            final int TEST_SIZE = 100;
+//
+//            for(int i = 0; i < TEST_SIZE; i++) {
+//
+//                final Set<Entry<String, InputStream>> value = new HashSet<Entry<String, InputStream>>();
+//
+//                value.add(new DefaultEntry<String, InputStream>(String.valueOf(i), new ByteArrayInputStream(String.valueOf(i).getBytes())));
+//
+//                int blobIndex = manager.setBlobs(-1, value);
+//
+//                logger.debug("blobIndex for key " + i);
+//
+//                indexes.put(i, blobIndex);
+//
+//            }
+//
+//            for(int i = 0; i < TEST_SIZE; i++) {
+//
+//                logger.debug("testing key " + String.valueOf(i));
+//
+//                final int blobIndex = indexes.get(i);
+//
+//                final Set<Entry<String, InputStream>> value = manager.getBlobsAt(blobIndex);
+//
+//                assertTrue(value.iterator().hasNext());
+//
+//                final Entry<String, InputStream> entry = value.iterator().next();
+//
+//                final ByteArrayOutputStream out = new ByteArrayOutputStream();
+//
+//                try {
+//                    StreamUtil.copyTo(entry.getValue(), out);
+//                }
+//                catch (IOException e) {
+//                    fail();
+//                }
+//
+//                final String keyString = out.toString();
+//
+//                assertEquals(entry.getKey(), keyString);
+//
+//                logger.debug("key passed " + entry.getKey());
+//
+//            }
+//
+//
+//        }
+//        catch (HashBlobException e) {
+//
+//            logger.error("failed", e);
+//            fail();
+//        }
+        
+    }
+    
+    @Test
+    public void testHashing() throws ReadFailure, WriteFailure {
+            
+        final File root = hashFile;
+        deleteRoot(root);
+
+        final FileHash<String, String> hash = new FileHash<String, String>(root, new MemoryHashDataManager<>(), 1000) {
+            @Override
+            public int hashCode(String s) {
+                return s.hashCode();
+            }
+
+            @Override
+            public boolean equals(String key1, String key2) {
+                return key1.equals(key2);
+            }
+        };
+
+        checkFileEmpty(root);
+
+        final int TEST_COUNT = 1000;
+
+        for(int i = 0; i < TEST_COUNT; i++) {
+
+            hash.put(String.valueOf(i), String.valueOf(i));
+
+            final String seg = hash.get(String.valueOf(i));
+
+            assertNotNull("i not null " + i, seg);
+
+            assertEquals(String.valueOf(i), seg);
+
+        }
+
+        assertNull(hash.get(String.valueOf(TEST_COUNT + 1)));
+
+        for(int i = 0; i < TEST_COUNT; i++) {
+            hash.remove(String.valueOf(i));
+        }
+
+        for(int i = 0; i < TEST_COUNT; i++) {
+
+            final String val = hash.get(String.valueOf(i));
+
+            assertNull(val);
+
+        }
+
+        checkFileEmpty(root);
+
+        deleteRoot(root);
+
+        
+    }
+    
+    @Test
+    public void testHashingDelete() throws ReadFailure, WriteFailure {
+
+        final File root = hashFile;
+        deleteRoot(root);
+
+        final FileHash<String, String> hash = new FileHash<String, String>(root, new MemoryHashDataManager<>(), 1000) {
+            @Override
+            public int hashCode(String s) {
+                return s.hashCode();
+            }
+
+            @Override
+            public boolean equals(String key1, String key2) {
+                return key1.equals(key2);
+            }
+        };
+
+        checkFileEmpty(root);
+
+        final int TEST_COUNT = 10;
+
+        for(int i = 0; i < TEST_COUNT; i++) {
+
+            hash.put(String.valueOf(i), String.valueOf(i));
+
+            final String seg = hash.get(String.valueOf(i));
+
+            assertNotNull("i not null " + i, seg);
+
+            assertEquals(String.valueOf(i), seg);
+
+        }
+
+        assertNull(hash.get(String.valueOf(TEST_COUNT + 1)));
+
+        hash.clear();
+
+        for(int i = 0; i < TEST_COUNT; i++) {
+
+            final String val = hash.get(String.valueOf(i));
+
+            assertNull(val);
+
+        }
+
+        checkFileEmpty(root);
+
+        deleteRoot(root);
+        
+    }
+
+    @Test
+    public void testByteStuff() {
+
+        final byte [] bytes1 = new byte [] {1,2,3,4,5};
+        final byte [] bytes2 = new byte [] {1,2,3,4,5};
+
+        assertTrue(Arrays.equals(bytes1, bytes1));
+        assertEquals(Arrays.hashCode(bytes1), Arrays.hashCode(bytes2));
+
+    }
+    
+    @Test
+    public void testRealHashing() throws ReadFailure, WriteFailure, IOException {
+
+        final File root = new File(cacheDir, "./temp-hash/");
+        final File tempFolder = new File(cacheDir, "./temp-data");
+        final File dataFolder = new File(cacheDir, "./segmentData");
+
+        deleteRoot(root);
+        deleteRoot(tempFolder);
+        deleteRoot(dataFolder);
+
+        dataFolder.createNewFile();
+
+        final HashDataManager<byte [], byte []> manager = new SegmentedHashDataManager(dataFolder);
+
+        final FileHash< byte [],  byte []> hash = new FileHash<byte[], byte[]>(root, manager, 1000) {
+            @Override
+            public int hashCode(byte[] bytes) {
+                return Arrays.hashCode(bytes);
+            }
+
+            @Override
+            public boolean equals(byte[] key1, byte[] key2) {
+                return Arrays.equals(key1, key2);
+            }
+        };
+
+        checkFileEmpty(root);
+
+        final int TEST_COUNT = 100;
+
+        for(int i = 0; i < TEST_COUNT; i++) {
+
+            hash.put(String.valueOf(i).getBytes(StandardCharsets.UTF_8), String.valueOf(i).getBytes(StandardCharsets.UTF_8));
+
+            final byte [] segInput = hash.get(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
+
+            final String seg = new String(segInput);
+
+            assertNotNull("i not null " + i, seg);
+
+            assertEquals(String.valueOf(i), seg);
+
+        }
+
+        assertNull(hash.get(String.valueOf(TEST_COUNT + 1).getBytes(StandardCharsets.UTF_8)));
+
+        for(int i = 0; i < TEST_COUNT; i++) {
+            hash.remove(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
+        }
+
+        for(int i = 0; i < TEST_COUNT; i++) {
+
+            final byte [] segInput = hash.get(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
+
+            assertNull(segInput);
+
+        }
+
+        checkFileEmpty(root);
+
+        deleteRoot(root);
+        deleteRoot(tempFolder);
+        deleteRoot(dataFolder);
+
+    }
+//
+//    @Test
+//    public void testRealHashingClear() {
+//
+//        final File root = new File("./target/test-files/temp-hash/");
+//        final File tempFolder = new File("./target/test-files/temp-data");
+//        final File dataFolder = new File("./target/test-files/data/data");
+//
+//        deleteRoot(root);
+//        deleteRoot(tempFolder);
+//        deleteRoot(dataFolder);
+//
+//        final HashDataManager<String, InputStream> manager = new LoggingManager(new MemoryHashDataManager<>(dataFolder, tempFolder, new SerializingConverter<String>()));
+//
+//        final FileHash<String, InputStream> hash = new FileHash<String, InputStream>(root, manager, 1000);
+//
+//        checkFileEmpty(root);
+//
+//        final int TEST_COUNT = 100;
+//
+//        for(int i = 0; i < TEST_COUNT; i++) {
+//
+//            final ByteArrayInputStream input = new ByteArrayInputStream(String.valueOf(i).getBytes());
+//
+//            hash.put(String.valueOf(i), input);
+//
+//            final InputStream segInput = hash.get(String.valueOf(i));
+//
+//            final ByteArrayOutputStream out = new ByteArrayOutputStream();
+//
+//            try {
+//                StreamUtil.copyTo(segInput, out);
+//            }
+//            catch(IOException e) {
+//                fail();
+//            }
+//
+//            final String seg = new String(out.toByteArray());
+//
+//            assertNotNull("i not null " + i, seg);
+//
+//            assertEquals(String.valueOf(i), seg);
+//
+//        }
+//
+//        assertNull(hash.get(String.valueOf(TEST_COUNT + 1)));
+//
+//        hash.clear();
+//
+//        for(int i = 0; i < TEST_COUNT; i++) {
+//
+//            final InputStream segInput = hash.get(String.valueOf(i));
+//
+//            assertNull(segInput);
+//
+//        }
+//
+//        checkFileEmpty(root);
+//
+//        deleteRoot(root);
+//        deleteRoot(tempFolder);
+//        deleteRoot(dataFolder);
+//
+//    }
+
+    @Test
+    public void testManagerSegCreation() {
+
+        final Set<Pair<String, String>> pairs = new HashSet<>();
+
+        for(int i = 0; i < 10000; i++) {
+
+            final String key =  String.valueOf(i);
+            final String data = UUID.randomUUID().toString();
+
+            pairs.add(new Pair<>(key, data));
+        }
+
+        final Set<Pair<byte [], byte []>> pairsBytes = new HashSet<>();
+
+        for(Pair<String, String> pair : pairs) {
+            pairsBytes.add(new Pair<>(pair.getOne().getBytes(StandardCharsets.UTF_8), pair.getTwo().getBytes(StandardCharsets.UTF_8)));
+        }
+
+        final byte [] pairData = SegmentedHashDataManager.getPairData(pairsBytes);
+
+        final Set<Pair<byte [], byte []>> pairsBytesRestored = SegmentedHashDataManager.getSegmentPairs(pairData);
+        final Set<Pair<String, String>> pairsStringRestored = new HashSet<>();
+
+        for(Pair<byte [], byte []> restored : pairsBytesRestored) {
+
+            pairsStringRestored.add(new Pair<>(new String(restored.getOne(), StandardCharsets.UTF_8), new String(restored.getTwo(), StandardCharsets.UTF_8)));
+        }
+
+        for(Pair<String, String> pair : pairsStringRestored) {
+            assertTrue(pairs.contains(pair));
+        }
+
+
+    }
+
+//    private static class LoggingManager implements HashDataManager<byte [], InputStream> {
+//
+//        private final HashDataManager<String, InputStream> internal;
+//
+//        public LoggingManager(HashDataManager<String, InputStream> internal) {
+//            this.internal = internal;
+//        }
+//
+//        @Override
+//        public Set<Pair<String, InputStream>> getBlobsAt(long blobIndex) throws ReadFailure {
+//            return internal.getBlobsAt(blobIndex);
+//        }
+//
+//        @Override
+//        public long setBlobs(long blobIndex, Set<Pair<String, InputStream>> blobs) throws ReadFailure, WriteFailure {
+//
+//            logger.debug("setting blobs " + blobIndex);
+//
+//            final long returnVal = internal.setBlobs(blobIndex, blobs);
+//
+//            logger.debug("set blobs at index " + blobIndex + " new Index " + returnVal);
+//
+//            return returnVal;
+//
+//        }
+//
+//        @Override
+//        public void eraseBlobs(long blobIndex) throws WriteFailure, ReadFailure {
+//
+//            internal.eraseBlobs(blobIndex);
+//
+//        }
+//
+//        @Override
+//        public void clear() throws WriteFailure, ReadFailure {
+//            internal.clear();
+//        }
+//    }
+    
+    private void checkFileEmpty(final File root) {
+        
+        try {
+            
+            final InputStream in = new FileInputStream(root);
+            
+            try {
+                
+                int totalRead = 0;
+                
+                final byte [] buffer = new byte[1000];
+                
+                while(true) {
+                    
+                    final int read = in.read(buffer);
+                    
+                    if(read > 0) {
+                        
+                        for(int i = 0; i < read; i++) {
+                            
+                            if(buffer[i] != -1) {
+                                
+                                logger.debug("hash not empty " + totalRead + " " + buffer[i]);
+                                fail();
+                                
+                            }
+                            
+                            totalRead++;
+                            
+                        }
+                        
+                    }
+                    else {
+                        break;
+                    }
+                    
+                }
+                
+            }
+            finally {
+                in.close();
+            }
+        } 
+        catch (FileNotFoundException e) {
+            fail();
+        }
+        catch (IOException e) {
+            fail();
+        }
+        
+    }
+
+    void deleteRoot (File root) {
+        if (root.exists()) {
+            
+            if(root.listFiles() != null) {
+                for (File cacheFile: root.listFiles()){
+                    cacheFile.delete();
+                }
+            }
+            root.delete();
+        }
+    }
+
+    public static void copyTo(
+            final InputStream in,
+            final Set<OutputStream> outs,
+            final int bufferSize
+    ) throws IOException {
+
+        if(in == null) {
+            throw new NullPointerException("<StreamUtil><1>" + "In cannot be null");
+        }
+
+        if(outs == null) {
+            throw new NullPointerException("<StreamUtil><2>" + "Out cannot be null");
+        }
+
+        if(outs.contains(null)) {
+            throw new NullPointerException("<StreamUtil><3>" + "outs cannot contain null");
+        }
+
+        final byte [] buffer = new byte[bufferSize];
+
+        while(true) {
+
+            final int read = in.read(buffer);
+
+            if(read <= 0) {
+                break;
+            }
+
+            for(final OutputStream out : outs) {
+                out.write(buffer, 0, read);
+            }
+
+        }
+
+        for(final OutputStream out : outs) {
+            out.flush();
+        }
+
+    }
+
+    /**
+     * flushes doesn't close
+     *
+     * @param in
+     * @param out
+     * @param bufferSize
+     * @throws IOException
+     */
+    public static void copyTo(
+            final InputStream in,
+            final OutputStream out,
+            final int bufferSize
+    ) throws IOException {
+
+        final Set<OutputStream> outs = new HashSet<OutputStream>();
+        outs.add(out);
+
+        copyTo(in, outs, bufferSize);
+
+    }
+
+    /**
+     *
+     * flushes doesn't close
+     *
+     * @param is
+     * @param out
+     * @throws IOException
+     */
+    public static void copyTo(InputStream is, OutputStream out) throws IOException {
+        copyTo(is, out, 1024);
+    }
+
+    public static byte [] digest(InputStream in) throws NoSuchAlgorithmException, IOException {
+
+        final MessageDigest md = MessageDigest.getInstance("MD5");
+
+        final DigestInputStream is = new DigestInputStream(in, md);
+
+        try {
+
+            final byte [] buffer = new byte[1024];
+
+            // read stream to EOF as normal...
+            while(is.read(buffer) >= 0) {
+
+            }
+
+        }
+        finally {
+            is.close();
+        }
+
+        return is.getMessageDigest().digest();
+
+    }
+
+
+}

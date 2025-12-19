@@ -49,18 +49,28 @@ public class SegmentedFile {
         }
 
         try {
+
+            if(!root.exists()) {
+                root.createNewFile();
+            }
+
             this.writeRandom = new RandomAccessFile(root, "rws");
             this.readRandom = new RandomAccessFile(root, "r");
+
         } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException("there's an issue with file for segments", e);
+        } catch (IOException e) {
+            throw new IllegalStateException("there's an issue with file for segments", e);
         }
 
     }
 
     /**
      *
-     * @param address
-     * @param segment
+     * This method writes the bytes to the segrment at the address
+     *
+     * @param address - beginning address of segment
+     * @param segment - data to be filled into segment
      * @throws ReadFailure
      * @throws WriteFailure
      */
@@ -71,7 +81,7 @@ public class SegmentedFile {
             try {
 
                 random.seek(address + SEGMENT_LENGTH_BYTES_COUNT); //seek to the state byte of the new segment that doesn't exist yet
-                random.write(new byte[]{TRANSITIONAL_STATE});
+                random.write(new byte[]{TRANSITIONAL_STATE}); //note the caller needs to finalize the state
                 random.write(intToByteArray(segment.length));//write the fill size
                 random.write(segment); //write the payload
 
@@ -89,6 +99,14 @@ public class SegmentedFile {
         }
     }
 
+    /**
+     * Writes the state of the segment to the segment
+     *
+     * @param address
+     * @param state
+     * @throws WriteFailure
+     * @throws ReadFailure
+     */
     public void writeState(long address, byte state) throws WriteFailure, ReadFailure {
 
         try {
@@ -111,6 +129,8 @@ public class SegmentedFile {
     }
 
     /**
+     * This method finds the last segment address which isn't allocated yet,
+     * assigns it a size and state and puts the data provided into it.
      *
      * @param segment
      * @return
@@ -119,22 +139,28 @@ public class SegmentedFile {
      */
     public long writeToEnd(final byte [] segment) throws WriteFailure, ReadFailure {
 
-        long address = lastKnownAddress;
+        long address = lastKnownAddress; //shortcut to the last address if we already know it
 
         while (true) {
 
             try {
 
+                //this only ever really runs through once the first time, then we know the last address
+                //it's a forward linked list though so there's no way to go from the back to the front
                 readRandom.seek(address);
 
-                final byte[] segmentSize = new byte[SEGMENT_LENGTH_BYTES_COUNT];
+                final byte[] segmentSize = new byte[SEGMENT_LENGTH_BYTES_COUNT + 1];
 
                 try {
 
-                    readRandom.readFully(segmentSize, 0, segmentSize.length);
+                    readRandom.readFully(segmentSize, 0, segmentSize.length); //read in the segment size, this blows an EOF if we are at the end
 
-                    final int segmentLength = bytesToInt(segmentSize);
+                    //didn't blow up so lets process the info for this segment and cache it.
+                    final int segmentLength = bytesToInt(new byte [] {segmentSize[0],  segmentSize[1], segmentSize[2], segmentSize[3]});
 
+                    final byte type = segmentSize[4]; //reading the state just to cache it
+
+                    reference.setSegmentType(address, type);
                     reference.setSegmentSize(address, segmentLength);
 
                     address += segmentLength + SEGMENT_LENGTH_BYTES_COUNT + 1 + SEGMENT_LENGTH_BYTES_COUNT ;
@@ -142,9 +168,10 @@ public class SegmentedFile {
                 }
                 catch (EOFException e) {
 
+                    //once we reach the end of the file we add a segment to it.
                     try {
                         writeRandom.seek(address + SEGMENT_LENGTH_BYTES_COUNT); //seek to the state byte of the new segment that doesn't exist yet
-                        writeRandom.write(new byte[]{TRANSITIONAL_STATE});
+                        writeRandom.write(new byte[]{TRANSITIONAL_STATE}); //write the state first
                         writeRandom.seek(address + SEGMENT_LENGTH_BYTES_COUNT + 1 + /*fill length*/SEGMENT_LENGTH_BYTES_COUNT);
                         writeRandom.write(segment);
                         writeRandom.seek(address);
@@ -158,14 +185,14 @@ public class SegmentedFile {
                         this.lastKnownAddress = address;
                         return address; //return it in transitional state
                     }
-                    catch (IOException we) {
+                    catch (IOException we) { //seperating the try/catch to send a write failure here
                         throw new WriteFailure("failed to write " + e.getMessage());
                     }
 
                 }
 
             } catch (FileNotFoundException e) {
-                throw new ReadFailure("failed to read " + e.getMessage());
+                throw new IllegalStateException("failed to read because some deleted the file " + e.getMessage());
             } catch (IOException e) {
                 logger.error("failed to read " + e.getMessage(), e);
                 throw new ReadFailure("failed to read " + e.getMessage(), e);
@@ -173,44 +200,59 @@ public class SegmentedFile {
         }
     }
 
+    /**
+     * Searches the segmented file for a free segment to use.
+     *
+     * @param lengthRequired - size in bytes we need the segment to be
+     * @return
+     * @throws ReadFailure
+     * @throws OutOfSpaceException - thrown if we reach the last item and still can't find anything
+     * @throws SpaceFragementedException - thrown if we reach a framented group of segments that can be used by merging them
+     */
     public long getFreeSegment(final int lengthRequired) throws ReadFailure, OutOfSpaceException, SpaceFragementedException {
 
+        //check cache for one we already know of
         final Long foundEarly = reference.getSuitableSegment(lengthRequired);
 
+        //return it if we know about it
         if(foundEarly != null) {
             return foundEarly;
         }
 
+        //used to keep track of continuous free segments so we can merge them
         final List<Long> freeSegments = new ArrayList<>();
         int freeSegmentsTotalSize = 0;
 
         try {
 
+            //start looking from beginning
             long address = 0;
 
-            while (true) {
+            while (true) { //keep looking till we find a free segment
 
                 final int segmentLength;
                 Byte segmentState = reference.getSegmentType(address);
 
                 {
-
+                    //if we already know the segment state check it conditionally
                     switch(segmentState) {
                         case BOUND_STATE:
                         case TRANSITIONAL_STATE: {
-
+                            //segment isnt free so it can't be used
                             segmentLength = 0;
                             break;
                         }
                         case FREE_STATE: {
+                            //segment is free and cached so check the length
                             segmentLength = reference.getSegmentSize(address);
                             break;
                         }
                         case null :
                         default: {
-                            //go to the next address
+                            //go to the next address since we didn't have it cached
                             readRandom.seek(address);
 
+                            //read in segment length and type
                             final byte[] segmentSize = new byte[SEGMENT_LENGTH_BYTES_COUNT + 1];
 
                             try {
@@ -218,12 +260,14 @@ public class SegmentedFile {
                                 readRandom.readFully(segmentSize, 0, segmentSize.length);
                             }
                             catch (EOFException e) {
+                                //throw out of space so we can add to the end in another call
                                 throw new OutOfSpaceException("out of free or fractured segments");
                             }
 
                             segmentState = segmentSize[4];//random.readByte();
                             segmentLength = bytesToInt(new byte[] {segmentSize[0], segmentSize[1], segmentSize[2], segmentSize[3]});
 
+                            //cache the size and state
                             reference.setSegmentSize(address, segmentLength);
                             reference.setSegmentType(address, segmentState);
                             break;
@@ -233,6 +277,7 @@ public class SegmentedFile {
 
                 }
 
+                //free segment lets see if it fits
                 if(segmentState == FREE_STATE) {
 
                     if(segmentLength >= lengthRequired) {
@@ -250,15 +295,20 @@ public class SegmentedFile {
 
                         if((freeSegmentsTotalSize + accumulatedMetaSize) >= lengthRequired) {
 
+                            //remove the items we are merging from the cache, if the calling body cancels the merge the cache can be rebuilt
                             for(int i = 1; i < freeSegments.size(); i++) {
 
                                 final int oldSize = reference.getSegmentSize(freeSegments.get(i));
 
                                 reference.setSegmentType(freeSegments.get(i), null);
+
+                                //if the user cancels merging i think this will make the segment invisible until the app restarts
+                                //i dont really care though because that probably never happens and it will eventually recover the segments
                                 reference.setSegmentSize(freeSegments.get(i), 0, oldSize);
 
                             }
 
+                            //throw exception with the info on the fragmented segments for merge.
                             throw new SpaceFragementedException(freeSegments.get(0), freeSegmentsTotalSize + accumulatedMetaSize);
                         }
                     }
@@ -272,6 +322,7 @@ public class SegmentedFile {
 
                 }
 
+                //this segment isnt eligible go to the next one
                 address += segmentLength + SEGMENT_LENGTH_BYTES_COUNT + 1 + SEGMENT_LENGTH_BYTES_COUNT;
 
             }
@@ -287,7 +338,7 @@ public class SegmentedFile {
     }
 
     /**
-     * warning needs to be transactional
+     * Assigns the segments size
      *
      * @param address
      * @param segmentSize
@@ -310,25 +361,33 @@ public class SegmentedFile {
 
     }
 
+    /**
+     * Reads the data in bytes from the segment
+     *
+     * @param address
+     * @return
+     * @throws ReadFailure
+     */
     public byte[] readSegment(long address) throws ReadFailure {
 
         try {
 
             readRandom.seek(address);
 
-            final byte[] segmentSize = new byte[SEGMENT_LENGTH_BYTES_COUNT];
-            final byte[] segmentFillSize = new byte[SEGMENT_LENGTH_BYTES_COUNT];
+            //read in the size, fill size and type
+            final byte [] toRead =  new byte[SEGMENT_LENGTH_BYTES_COUNT + 1 +  SEGMENT_LENGTH_BYTES_COUNT];
 
-            readRandom.readFully(segmentSize, 0, segmentSize.length);
+            readRandom.readFully(toRead, 0, toRead.length);
 
-            final byte segmentState = readRandom.readByte();
-            readRandom.readFully(segmentFillSize, 0, segmentFillSize.length);
-            final int segmentLength = bytesToInt(segmentSize);
-            final int segmentFillLength = bytesToInt(segmentFillSize);
+            final byte segmentState = toRead[4];
+
+            final int segmentLength = bytesToInt(new byte[] {toRead[0], toRead[1], toRead[2], toRead[3]});//segmentSize);
+            final int segmentFillLength = bytesToInt(new byte[] {toRead[5], toRead[6], toRead[7], toRead[8]});//bytesToInt(segmentFillSize);
 
             reference.setSegmentType(address, segmentState);
             reference.setSegmentSize(address, segmentLength);
 
+            //check to make sure the segment is bound otherwise there's nothing to read
             if(segmentState == BOUND_STATE) {
 
                 final byte [] returnVal =  new byte[segmentFillLength];
@@ -350,6 +409,112 @@ public class SegmentedFile {
         }
 
     }
+
+    /**
+     * Class that holds memory cache to all the segment info
+     */
+    private static class SegmentReference {
+
+        private final Map<Long, Byte> segmentTypes = new HashMap<>();
+        private final TreeMap<Integer, Set<Long>> segmentBySize = new TreeMap<>(); //could use a tree structure here maybe
+        private final Map<Long, Integer> segmentSizes = new HashMap<>();
+
+        public void setSegmentType(long address, Byte type) {
+            this.segmentTypes.put(address, type);
+        }
+
+        private Long getSuitableSegment(int segmentLength) {
+
+            Map.Entry<Integer, Set<Long>> entry;
+
+            while(true) {
+
+                entry = segmentBySize.ceilingEntry(segmentLength);
+
+                if(entry != null) {
+
+                    if(entry.getKey() < segmentLength) {
+                        throw new IllegalStateException();
+                    }
+
+                    for(final long address : entry.getValue()) {
+                        //if we found a free entry that fits return it
+                        if(segmentTypes.get(address) == FREE_STATE) {
+                            //TODO this is sucking down the cpu but I'm not sure how to deal with it without adding a lot of complication.
+                            return  address;
+                        }
+                    }
+
+                }
+                else {
+                    return null;
+                }
+
+                //go bigger and try again.
+                segmentLength = entry.getKey() + 1;
+
+            }
+
+        }
+
+        public void setSegmentSize(long address, int size) {
+
+            segmentSizes.put(address, size);
+
+            Set<Long> addresses = segmentBySize.get(size);
+            if(addresses == null) {
+                addresses = new HashSet<>();
+                segmentBySize.put(size, addresses);
+            }
+
+            addresses.add(address);
+
+        }
+
+        public void setSegmentSize(long address, int newSize, int oldSize) {
+
+            {
+
+                Set<Long> addresses = segmentBySize.get(oldSize);
+
+                if (addresses == null) {
+                    addresses = new HashSet<>();
+                    segmentBySize.put(newSize, addresses);
+                }
+
+                addresses.remove(address);
+
+            }
+
+            if(newSize > 0) {
+
+                segmentSizes.put(address, newSize);
+
+                Set<Long> addresses = segmentBySize.get(newSize);
+                if (addresses == null) {
+                    addresses = new HashSet<>();
+                    segmentBySize.put(newSize, addresses);
+                }
+
+                addresses.add(address);
+
+            }
+            else {
+                segmentSizes.remove(address);
+            }
+
+        }
+
+        public Byte getSegmentType(long address) {
+            return segmentTypes.get(address);
+        }
+
+        public int getSegmentSize(long address) {
+            return segmentSizes.get(address);
+        }
+    }
+
+    /************************ UTILITY METHODS ***************************/
 
     public static void delete(String filename) {
 
@@ -452,7 +617,6 @@ public class SegmentedFile {
         return buffer.array();
     }
 
-
     public void clear() throws ReadFailure, WriteFailure {
 
         try(final RandomAccessFile random = new RandomAccessFile(root, "rws")) {
@@ -465,108 +629,4 @@ public class SegmentedFile {
 
     }
 
-
-    private static class SegmentReference {
-
-        private final Map<Long, Byte> segmentTypes = new HashMap<>();
-        private final TreeMap<Integer, Set<Long>> segmentBySize = new TreeMap<>(); //could use a tree structure here maybe
-        private final Map<Long, Integer> segmentSizes = new HashMap<>();
-
-        public void setSegmentType(long address, Byte type) {
-            this.segmentTypes.put(address, type);
-        }
-
-        private Long getSuitableSegment(int segmentLength) {
-
-            Map.Entry<Integer, Set<Long>> entry;
-
-            while(true) {
-
-                entry = segmentBySize.ceilingEntry(segmentLength);
-
-                if(entry != null) {
-
-                    if(entry.getKey() < segmentLength) {
-                        throw new IllegalStateException();
-                    }
-
-                    for(final long address : entry.getValue()) {
-                        //if we found a free entry that fits return it
-                        if(segmentTypes.get(address) == FREE_STATE) {
-                            //TODO this is sucking down the cpu but I'm not sure how to deal with it without adding a lot of complication.
-                            return  address;
-                        }
-                    }
-
-                }
-                else {
-                    return null;
-                }
-
-                //go bigger and try again.
-                segmentLength = entry.getKey() + 1;
-
-            }
-
-        }
-
-        public void setSegmentSize(long address, int size) {
-
-            segmentSizes.put(address, size);
-
-            Set<Long> addresses = segmentBySize.get(size);
-            if(addresses == null) {
-                addresses = new HashSet<>();
-                segmentBySize.put(size, addresses);
-            }
-
-            addresses.add(address);
-
-        }
-
-        public void setSegmentSize(long address, int newSize, int oldSize) {
-
-
-
-
-            {
-
-                Set<Long> addresses = segmentBySize.get(oldSize);
-
-                if (addresses == null) {
-                    addresses = new HashSet<>();
-                    segmentBySize.put(newSize, addresses);
-                }
-
-                addresses.remove(address);
-
-            }
-
-            if(newSize > 0) {
-
-                segmentSizes.put(address, newSize);
-
-                Set<Long> addresses = segmentBySize.get(newSize);
-                if (addresses == null) {
-                    addresses = new HashSet<>();
-                    segmentBySize.put(newSize, addresses);
-                }
-
-                addresses.add(address);
-
-            }
-            else {
-                segmentSizes.remove(address);
-            }
-
-        }
-
-        public Byte getSegmentType(long address) {
-            return segmentTypes.get(address);
-        }
-
-        public int getSegmentSize(long address) {
-            return segmentSizes.get(address);
-        }
-    }
 }

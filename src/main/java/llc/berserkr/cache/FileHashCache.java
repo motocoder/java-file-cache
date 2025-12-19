@@ -2,6 +2,7 @@ package llc.berserkr.cache;
 
 import llc.berserkr.cache.exception.CacheException;
 import llc.berserkr.cache.exception.ReadFailure;
+import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.exception.WriteFailure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 
 public class FileHashCache implements Cache<byte [], byte []> {
 
@@ -56,18 +58,18 @@ public class FileHashCache implements Cache<byte [], byte []> {
 
     }
     @Override
-    public boolean exists(byte [] key) throws CacheException {
+    public boolean exists(byte [] key) throws ResourceException {
     	
         try {
             return hash.get(key) != null;
         } catch (ReadFailure e) {
-            throw new CacheException("failure", e);
+            throw new ResourceException("failure", e);
         }
 
     }
 
     @Override
-    public byte [] get(byte [] key) throws CacheException {
+    public byte [] get(byte [] key) throws ResourceException {
         
         try {
             
@@ -76,34 +78,39 @@ public class FileHashCache implements Cache<byte [], byte []> {
             return returnVal;
             
         } catch (ReadFailure e) {
-            throw new CacheException("failure", e);
+            throw new ResourceException("failure", e);
         }
 
     }
 
     @Override
-    public void clear() throws CacheException {
+    public List<byte[]> getAll(List<byte[]> bytes) throws ResourceException {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
+    public void clear() throws ResourceException {
         
         try {
             hash.clear();
         } catch (ReadFailure | WriteFailure e) {
-            throw new CacheException("failure", e);
+            throw new ResourceException("failure", e);
         }
     }
 
     @Override
-    public void remove(byte [] key) throws CacheException {
+    public void remove(byte [] key) throws ResourceException {
                 
         try {
             hash.remove(key);
         } catch (ReadFailure | WriteFailure e) {
-            throw new CacheException("failure", e);
+            throw new ResourceException("failure", e);
         }
 
     }
 
     @Override
-    public void put(byte [] key, byte [] value) throws CacheException {
+    public void put(byte [] key, byte [] value) throws ResourceException {
         
         try {
             
@@ -111,7 +118,7 @@ public class FileHashCache implements Cache<byte [], byte []> {
             
         }
         catch (ReadFailure | WriteFailure e) {
-            throw new CacheException("failure", e);
+            throw new ResourceException("failure", e);
         }
         
     }

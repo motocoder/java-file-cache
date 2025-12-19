@@ -12,6 +12,14 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
+/**
+ * This class manages putting hashed items into the segmented file.
+ *
+ * It also maintains the transaction lifecycle of reads/and writes.
+ *
+ * TODO modify reading/writing to allow multiple reads async to writes
+ * TODO modify the value to be streamable instead of bytes to handle large values (potentially infinite instead of limited by heap size)
+ */
 public class SegmentedHashDataManager implements HashDataManager<byte [], byte []> {
 
     private static final Logger logger = LoggerFactory.getLogger(SegmentedHashDataManager.class);

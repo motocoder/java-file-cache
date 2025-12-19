@@ -4,6 +4,7 @@ import com.jakewharton.disklrucache.DiskLruCache;
 import com.jakewharton.disklrucache.DiskLruCacheTest;
 import llc.berserkr.cache.FileHashCache;
 import llc.berserkr.cache.exception.CacheException;
+import llc.berserkr.cache.exception.ResourceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -71,7 +72,7 @@ public class CacheCompareTest {
     private static final int READ_LOOPS = 1000;
 
     @Test
-    public void test() throws CacheException, IOException {
+    public void test() throws CacheException, IOException, ResourceException {
 
         final FileHashCache hashCache = new FileHashCache(hashCacheDir, TEST_SIZE * 2);
 

@@ -1,13 +1,16 @@
 package llc.berserkr.cache;
 
 import llc.berserkr.cache.exception.CacheException;
+import llc.berserkr.cache.exception.ResourceException;
 
-public interface Cache<TKey, TValue> {
+import java.util.List;
 
-	void clear() throws CacheException;
-	void remove(TKey key) throws CacheException;
-	void put(TKey key, TValue value) throws CacheException;
-    boolean exists(TKey key) throws CacheException;
-    TValue get(TKey key) throws CacheException;
+public interface Cache<Key, Value> {
 
+	void clear() throws ResourceException;
+	void remove(Key key) throws ResourceException;
+	void put(Key key, Value value) throws ResourceException;
+    boolean exists(Key key) throws ResourceException;
+    Value get(Key key) throws ResourceException;
+    List<Value> getAll(List<Key> keys) throws ResourceException;
 }

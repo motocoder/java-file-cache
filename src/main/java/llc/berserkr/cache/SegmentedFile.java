@@ -46,6 +46,7 @@ public class SegmentedFile {
      *
      * TODO seperate reads/write so they can run on different threads at the same time.
      * TODO memory cache has an O^n issue that affect performance some when a lot of segments exist
+     * TODO write the memory cache of addresses and state in C, would probably double the performance of this sytem because that's the bottle neck.
      *
      * @param root
      */

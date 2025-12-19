@@ -2,6 +2,7 @@ package llc.berserkr.cache;
 
 import llc.berserkr.cache.exception.OutOfSpaceException;
 import llc.berserkr.cache.exception.ReadFailure;
+import llc.berserkr.cache.exception.SpaceFragementedException;
 import llc.berserkr.cache.exception.WriteFailure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +41,6 @@ public class SegmentedHashDataManager implements HashDataManager<byte [], byte [
         final byte [] pairData = getPairData(blobs);
 
         try {
-
             //find a free segment and write the data into it.
             long free = segmentedFile.getFreeSegment(pairData.length);
 
@@ -48,7 +48,16 @@ public class SegmentedHashDataManager implements HashDataManager<byte [], byte [
             segmentedFile.writeState(free, SegmentedFile.BOUND_STATE);
 
             return free;
-        } catch (OutOfSpaceException e) {
+        }
+        catch (final SpaceFragementedException e) {
+
+            segmentedFile.setSegmentSize(e.getAddress(), e.getSegmentSize());
+            segmentedFile.write(e.getAddress(), pairData);
+            segmentedFile.writeState(e.getAddress(), SegmentedFile.BOUND_STATE);
+
+            return e.getAddress();
+        }
+        catch (OutOfSpaceException e) {
 
             //no free segments, add to the end of the segment file
             final long address = segmentedFile.writeToEnd(pairData);

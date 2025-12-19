@@ -10,7 +10,9 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class SegmentedFile {
 
@@ -25,6 +27,9 @@ public class SegmentedFile {
     public static final byte TRANSITIONAL_STATE = -126;
 
     private final File root;
+    private long lastKnownAddress = 0;
+
+    private final Set<Pair<Long, Integer>> freeSegments = new HashSet<>();
 
     /**
      *
@@ -105,7 +110,7 @@ public class SegmentedFile {
      */
     public long writeToEnd(final byte [] segment) throws WriteFailure, ReadFailure {
 
-        long address = 0;
+        long address = lastKnownAddress;
 
         while (true) {
 
@@ -135,6 +140,8 @@ public class SegmentedFile {
                         random.write(intToByteArray(segment.length));
                         random.seek(address + SEGMENT_LENGTH_BYTES_COUNT + 1);
                         random.write(intToByteArray(segment.length)); //data fill is same size as the segment since its a new segment
+
+                        this.lastKnownAddress = address;
                         return address; //return it in transitional state
                     }
                     catch (IOException we) {
@@ -152,7 +159,53 @@ public class SegmentedFile {
         }
     }
 
+    public void addFreeSegment(final long address, int segmentLength) {
+        this.freeSegments.add(new Pair<>(address, segmentLength));
+    }
+
+    private void removeMemorySegment(long free) {
+
+        Pair<Long, Integer> memorySegment = null;
+        for(final Pair<Long, Integer> pair : freeSegments) {
+
+            if(pair.getOne() == free) {
+                memorySegment = pair;
+                break;
+            }
+        }
+
+        freeSegments.remove(memorySegment);
+
+    }
+
+    public long getFreeMemorySegment(final int lengthRequired) {
+        Pair<Long, Integer> memorySegment = null;
+
+        for(final Pair<Long, Integer> pair : freeSegments) {
+
+            if(pair.getTwo() >= lengthRequired) {
+                memorySegment = pair;
+                break;
+            }
+        }
+
+        if(memorySegment != null) {
+            freeSegments.remove(memorySegment);
+            return memorySegment.getOne();
+        }
+
+        return -1;
+
+    }
+
     public long getFreeSegment(final int lengthRequired) throws ReadFailure, OutOfSpaceException, SpaceFragementedException {
+
+        //skip hitting the file system if we know of one in memory
+        final long memory = getFreeMemorySegment(lengthRequired);
+
+        if(memory >= 0) {
+            return memory;
+        }
 
         final List<Long> freeSegments = new ArrayList<>();
         int freeSegmentsTotalSize = 0;
@@ -171,7 +224,7 @@ public class SegmentedFile {
                     //go to the next address
                     random.seek(address);
 
-                    final byte[] segmentSize = new byte[SEGMENT_LENGTH_BYTES_COUNT];
+                    final byte[] segmentSize = new byte[SEGMENT_LENGTH_BYTES_COUNT + 1];
 
                     try {
                         //read in the size of this segment
@@ -181,8 +234,8 @@ public class SegmentedFile {
                         throw new OutOfSpaceException("out of free or fractured segments");
                     }
 
-                    segmentState = random.readByte();
-                    segmentLength = bytesToInt(segmentSize);
+                    segmentState = segmentSize[4];//random.readByte();
+                    segmentLength = bytesToInt(new byte[] {segmentSize[0], segmentSize[1], segmentSize[2], segmentSize[3]});
 
                 }
 
@@ -198,10 +251,17 @@ public class SegmentedFile {
                         freeSegments.add(address);
                         freeSegmentsTotalSize += segmentLength;
 
+                        addFreeSegment(address, segmentLength);
+
                         final int accumulatedMetaSize =
                             ((freeSegments.size() - 1 /* first item we keep meta data*/) * (SEGMENT_LENGTH_BYTES_COUNT + 1 + SEGMENT_LENGTH_BYTES_COUNT));
 
                         if((freeSegmentsTotalSize + accumulatedMetaSize) >= lengthRequired) {
+
+                            for(long free : freeSegments) {
+                                removeMemorySegment(free);
+                            }
+
                             throw new SpaceFragementedException(freeSegments.get(0), freeSegmentsTotalSize + accumulatedMetaSize);
                         }
                     }
@@ -228,8 +288,6 @@ public class SegmentedFile {
         }
 
     }
-
-
 
     /**
      * warning needs to be transactional

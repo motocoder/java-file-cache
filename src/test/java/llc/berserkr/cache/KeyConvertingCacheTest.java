@@ -22,7 +22,6 @@ public class KeyConvertingCacheTest {
 	private static KeyConvertingCache<Long, String, byte[]> testCacheWithResourceLoader;
 
 	private static File rootDir = new File("./target/test-files/test1/");
-	private static FileCache fileCache;
 	private static KeyConvertingCache<Long, String, byte[]> testCacheWithFileCache;
 
 	private final static String TEST_VAL1 = "Test Value 1";
@@ -65,12 +64,8 @@ public class KeyConvertingCacheTest {
 				converter
 				);
 
-		fileCache = new FileCache(rootDir, 2000, -1); // 2000 is to keep a rogue test case from eating disk, -1 so no worries about expiration.
 		Converter<byte[], InputStream> valueConverter = new ReverseConverter<byte[], InputStream>(new InputStreamConverter());
-		testCacheWithFileCache = new KeyConvertingCache<Long, String, byte[]> (
-				new ValueConvertingCache <String, byte[], InputStream> (fileCache, valueConverter),
-				converter
-				);
+
 	}
 
 	@AfterAll

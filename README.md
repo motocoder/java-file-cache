@@ -6,10 +6,14 @@ Everything runs off of two files, the hash has a file where the hash index is th
 Inside the segmented file is a bucket of key/value combinations which use hashcode and equals similiar to a java hashmap to deduce equality. 
 
 
-```
+```Java
 
 final FileHashCache cache = new FileHashCache(hashCacheDir);
 
-cache.put("key".toBytes(), "value".toBytes());
+cache.put("key".getBytes(), "value".getBytes());
+
+final String value = cache.get("key".getBytes());
+
+assertEquals("value", value);
 
 ```

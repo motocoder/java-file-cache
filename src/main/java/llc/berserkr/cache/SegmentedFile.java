@@ -17,20 +17,35 @@ public class SegmentedFile {
 
     //bytes at the beginning of each segment to construct into an int for the segment length
     private static final int SEGMENT_LENGTH_BYTES_COUNT = 4;
+    private static final int START_OFFSET = 1024; //leave 1024 bytes for use of transactions
 
     //byte range -128 to 127
     public static final byte FREE_STATE = -128;
     public static final byte BOUND_STATE = -127;
     public static final byte TRANSITIONAL_STATE = -126;
 
+    public static final byte WRITING_TRANSACTION = -125;
+    public static final byte MERGE_TRANSACTION = -124;
+    public static final byte ADD_END_TRANSACTION = -123;
+
     private final File root;
     private final SegmentReference reference = new SegmentReference();
     private final RandomAccessFile writeRandom;
     private final RandomAccessFile readRandom;
-    private long lastKnownAddress = 0;
+    private long lastKnownAddress = START_OFFSET;
 
     /**
-     * [x,x,x,x][x][x,x,x,x][x*n] segmentSize, type, fillSize, payload
+     *
+     * File format for a forward linked list of segments that can vary in size and fill.
+     *
+     * first kilobyte is reserved for some meta data used to make sure write operations don't
+     * break the structure on catastrophic failure.
+     *
+     * File format is such
+     * [x, ... 1024][[x,x,x,x][x][x,x,x,x][x*n] * count of entries] 1024 transaction bytes (reserved), segmentSize(4bytes), type(1byte), fillSize(4bytes), payload(segmentSize bytes)
+     *
+     * TODO seperate reads/write so they can run on different threads at the same time.
+     * TODO memory cache has an O^n issue that affect performance some when a lot of segments exist
      *
      * @param root
      */
@@ -61,6 +76,105 @@ public class SegmentedFile {
             throw new IllegalStateException("there's an issue with file for segments", e);
         } catch (IOException e) {
             throw new IllegalStateException("there's an issue with file for segments", e);
+        }
+
+        validateData();
+
+    }
+
+    /**
+     * This method will reverse any open transaction
+     */
+    public void validateData() {
+
+        try {
+
+            final byte [] transactionBytes = readTransactionalBytes();
+
+            switch (transactionBytes[0]) {
+                case WRITING_TRANSACTION:
+                {
+
+                    long address = bytesToLong(
+                        new byte[] {
+                            transactionBytes[1],
+                            transactionBytes[2],
+                            transactionBytes[3],
+                            transactionBytes[4],
+                            transactionBytes[5],
+                            transactionBytes[6],
+                            transactionBytes[7],
+                            transactionBytes[8]
+                        }
+                    );
+
+                    logger.debug("writting free " + address);
+                    writeState(address, FREE_STATE);
+
+                    writeTransactionalBytes(new byte[] {});
+                    break;
+                }
+                case MERGE_TRANSACTION:
+                {
+
+                    long address = bytesToLong(
+                        new byte[] {
+                            transactionBytes[1],
+                            transactionBytes[2],
+                            transactionBytes[3],
+                            transactionBytes[4],
+                            transactionBytes[5],
+                            transactionBytes[6],
+                            transactionBytes[7],
+                            transactionBytes[8],
+                        }
+                    );
+
+                    int length = bytesToInt(
+                        new byte[] {
+                            transactionBytes[9],
+                            transactionBytes[10],
+                            transactionBytes[11],
+                            transactionBytes[12]
+                        }
+                    );
+
+                    writeState(address, FREE_STATE);
+                    write(address, new byte[length]);
+                    setSegmentSize(address, length);
+                    writeState(address, FREE_STATE);
+
+                    writeTransactionalBytes(new byte[] {});
+                    break;
+                }
+                case ADD_END_TRANSACTION:
+                {
+                    int length = bytesToInt(
+                        new byte[] {
+                            transactionBytes[1],
+                            transactionBytes[2],
+                            transactionBytes[3],
+                            transactionBytes[4]
+                        }
+                    );
+
+                    long endAddress = this.findEnd();
+
+                    writeState(endAddress, FREE_STATE);
+                    write(endAddress, new byte[length]);
+                    writeState(endAddress, FREE_STATE);
+
+                    writeTransactionalBytes(new byte[] {});
+
+                }
+
+            }
+
+        }
+        catch (ReadFailure e) {
+            throw new IllegalStateException("couldn't validate data cache file is corrupt maybe", e);
+        } catch (WriteFailure e) {
+            throw new IllegalStateException("couldn't revert bad state data cache file is corrupt maybe", e);
         }
 
     }
@@ -125,6 +239,48 @@ public class SegmentedFile {
             throw new ReadFailure("file not found: " + root, e);
         } catch (IOException e) {
             throw new ReadFailure("unknown read error " + e.getMessage(), e);
+        }
+    }
+
+    public long findEnd() throws ReadFailure {
+
+        long address = lastKnownAddress; //shortcut to the last address if we already know it
+
+        while (true) {
+
+            try {
+
+                //this only ever really runs through once the first time, then we know the last address
+                //it's a forward linked list though so there's no way to go from the back to the front
+                readRandom.seek(address);
+
+                final byte[] segmentSize = new byte[SEGMENT_LENGTH_BYTES_COUNT + 1];
+
+                try {
+
+                    readRandom.readFully(segmentSize, 0, segmentSize.length); //read in the segment size, this blows an EOF if we are at the end
+
+                    //didn't blow up so lets process the info for this segment and cache it.
+                    final int segmentLength = bytesToInt(new byte [] {segmentSize[0],  segmentSize[1], segmentSize[2], segmentSize[3]});
+
+                    final byte type = segmentSize[4]; //reading the state just to cache it
+
+                    reference.setSegmentType(address, type);
+                    reference.setSegmentSize(address, segmentLength);
+
+                    address += segmentLength + SEGMENT_LENGTH_BYTES_COUNT + 1 + SEGMENT_LENGTH_BYTES_COUNT ;
+
+                }
+                catch (EOFException e) {
+                    return address;
+                }
+
+            } catch (FileNotFoundException e) {
+                throw new IllegalStateException("failed to read because some deleted the file " + e.getMessage());
+            } catch (IOException e) {
+                logger.error("failed to read " + e.getMessage(), e);
+                throw new ReadFailure("failed to read " + e.getMessage(), e);
+            }
         }
     }
 
@@ -226,7 +382,7 @@ public class SegmentedFile {
         try {
 
             //start looking from beginning
-            long address = 0;
+            long address = START_OFFSET;
 
             while (true) { //keep looking till we find a free segment
 
@@ -399,6 +555,105 @@ public class SegmentedFile {
             else {
                 throw new ReadFailure("segment at " + address + " is not bound it is " + segmentState);
             }
+
+        }
+        catch (FileNotFoundException e) {
+            throw new ReadFailure("file not found: " + root, e);
+        }
+        catch (IOException e) {
+            throw new ReadFailure("unknown read error " + e.getMessage(), e);
+        }
+
+    }
+
+    public void writeTransactionalBytes(byte [] toWrite) throws WriteFailure, ReadFailure {
+
+        if(toWrite.length > START_OFFSET) {
+            throw new IllegalArgumentException("toWrite must be less than 1024 bytes");
+        }
+
+        if(toWrite.length < START_OFFSET) {
+
+            final byte[] temp = new byte[1024];
+
+            Arrays.fill(temp, (byte) 0); //fill it with zeros
+
+            System.arraycopy(toWrite, 0, temp, 0, toWrite.length);
+
+            toWrite = temp;
+
+        }
+
+        try {
+
+            writeRandom.seek(0); //seek to the state byte of the new segment that doesn't exist yet
+            writeRandom.write(toWrite, 0, toWrite.length);
+
+        }
+        catch (IOException e) {
+            throw new WriteFailure("failed to write " + e.getMessage());
+        }
+
+    }
+
+    public byte[] readTransactionalBytes() throws ReadFailure {
+
+        try {
+
+            if(readRandom.length() < START_OFFSET) {
+
+                final byte[] returnVal = new byte[START_OFFSET];
+                Arrays.fill(returnVal, (byte) 0);
+
+                return returnVal;
+
+            }
+
+            readRandom.seek(0);
+
+            //read in the size, fill size and type
+            final byte [] toRead =  new byte[START_OFFSET];
+
+            readRandom.readFully(toRead, 0, toRead.length);
+
+            return toRead;
+
+        }
+        catch (FileNotFoundException e) {
+            throw new ReadFailure("file not found: " + root, e);
+        }
+        catch (IOException e) {
+            throw new ReadFailure("unknown read error " + e.getMessage(), e);
+        }
+
+    }
+
+    /**
+     *
+     * @param address
+     * @return
+     * @throws ReadFailure
+     */
+    public byte readSegmentState(long address) throws ReadFailure {
+
+        try {
+
+            readRandom.seek(address);
+
+            //read in the size, fill size and type
+            final byte [] toRead =  new byte[SEGMENT_LENGTH_BYTES_COUNT + 1 +  SEGMENT_LENGTH_BYTES_COUNT];
+
+            readRandom.readFully(toRead, 0, toRead.length);
+
+            final byte segmentState = toRead[4];
+
+            final int segmentLength = bytesToInt(new byte[] {toRead[0], toRead[1], toRead[2], toRead[3]});//segmentSize);
+            final int segmentFillLength = bytesToInt(new byte[] {toRead[5], toRead[6], toRead[7], toRead[8]});//bytesToInt(segmentFillSize);
+
+            reference.setSegmentType(address, segmentState);
+            reference.setSegmentSize(address, segmentLength);
+
+            return segmentState;
 
         }
         catch (FileNotFoundException e) {

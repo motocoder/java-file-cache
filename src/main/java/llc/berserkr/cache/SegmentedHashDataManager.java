@@ -34,43 +34,113 @@ public class SegmentedHashDataManager implements HashDataManager<byte [], byte [
     public long setBlobs(long blobIndex, Set<Pair<byte[], byte[]>> blobs) throws WriteFailure, ReadFailure {
 
         if(blobIndex >= 0) {
+
+            startWritingTransaction(segmentedFile, blobIndex);
+
             //delete the previous item
             segmentedFile.writeState(blobIndex, SegmentedFile.FREE_STATE);
+
+            endTransactions(segmentedFile);
+
         }
 
         final byte [] pairData = getPairData(blobs);
 
         try {
+
             //find a free segment and write the data into it.
             long free = segmentedFile.getFreeSegment(pairData.length);
 
+            startWritingTransaction(segmentedFile, free);
+
             segmentedFile.write(free, pairData);
             segmentedFile.writeState(free, SegmentedFile.BOUND_STATE);
+
+            endTransactions(segmentedFile);
 
             return free;
         }
         catch (final SpaceFragementedException e) {
 
+            startMergeTransaction(segmentedFile, e.getAddress(), e.getSegmentSize());
+
             segmentedFile.setSegmentSize(e.getAddress(), e.getSegmentSize());
             segmentedFile.write(e.getAddress(), pairData);
             segmentedFile.writeState(e.getAddress(), SegmentedFile.BOUND_STATE);
+
+            endTransactions(segmentedFile);
 
             return e.getAddress();
         }
         catch (OutOfSpaceException e) {
 
+            startAddTransaction(segmentedFile, pairData.length);
+
             //no free segments, add to the end of the segment file
             final long address = segmentedFile.writeToEnd(pairData);
 
             segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
+
+            endTransactions(segmentedFile);
+
             return address;
         }
 
     }
 
+    public static void startAddTransaction(SegmentedFile segmentedFile, int length) throws ReadFailure, WriteFailure {
+
+        final byte[] lengthBytes = SegmentedFile.intToByteArray(length);
+
+        final byte [] writeTransaction = new byte[] {
+            SegmentedFile.ADD_END_TRANSACTION, //if merge fails we will finish the merge but leave it empty
+            lengthBytes[0],
+            lengthBytes[1],
+            lengthBytes[2],
+            lengthBytes[3]
+        };
+
+        segmentedFile.writeTransactionalBytes(
+            writeTransaction
+        );
+
+    }
+
+    public static void startMergeTransaction(SegmentedFile segmentedFile, long address, int segmentSize) throws ReadFailure, WriteFailure {
+
+        final byte[] addressBytes = SegmentedFile.longToByteArray(address);
+        final byte[] lengthBytes = SegmentedFile.intToByteArray(segmentSize);
+
+        final byte [] writeTransaction = new byte[] {
+                SegmentedFile.MERGE_TRANSACTION, //if merge fails we will finish the merge but leave it empty
+                addressBytes[0],
+                addressBytes[1],
+                addressBytes[2],
+                addressBytes[3],
+                addressBytes[4],
+                addressBytes[5],
+                addressBytes[6],
+                addressBytes[7],
+                lengthBytes[0],
+                lengthBytes[1],
+                lengthBytes[2],
+                lengthBytes[3]
+        };
+
+        segmentedFile.writeTransactionalBytes(
+                writeTransaction
+        );
+
+    }
+
     @Override
     public void eraseBlobs(long blobIndex) throws WriteFailure, ReadFailure {
+        startWritingTransaction(segmentedFile, blobIndex);
+
+        //delete the previous item
         segmentedFile.writeState(blobIndex, SegmentedFile.FREE_STATE);
+
+        endTransactions(segmentedFile);
     }
 
     @Override
@@ -112,6 +182,10 @@ public class SegmentedHashDataManager implements HashDataManager<byte [], byte [
     public static Set<Pair<byte [], byte []>> getSegmentPairs(byte [] data) {
 
         final Set<Pair<byte [], byte []>> pairs = new HashSet<>();
+
+        if(data == null || data.length == 0) { //this shouldn't happen unless data got corrupted and blown away
+            return pairs;
+        }
 
         char count = bytesToChar(new byte [] {data[0], data[1]});
 
@@ -160,6 +234,31 @@ public class SegmentedHashDataManager implements HashDataManager<byte [], byte [
         // Assuming byte1 is the most significant byte and byte2 is the least significant byte
         // This order is typical for big-endian systems, or if you're constructing a specific UTF-16 value.
         return (char) (((byte1 & 0xFF) << 8) | (byte2 & 0xFF));
+
+    }
+
+    public static void endTransactions(SegmentedFile segmentedFile) throws ReadFailure, WriteFailure {
+        segmentedFile.writeTransactionalBytes(new byte[] {});
+    }
+
+    public static void startWritingTransaction(SegmentedFile segmentedFile, long address) throws ReadFailure, WriteFailure {
+
+        final byte[] addressBytes = SegmentedFile.longToByteArray(address);
+        final byte [] writeTransaction = new byte[] {
+            SegmentedFile.WRITING_TRANSACTION, //reversal of a write just deletes it anyway
+            addressBytes[0],
+            addressBytes[1],
+            addressBytes[2],
+            addressBytes[3],
+            addressBytes[4],
+            addressBytes[5],
+            addressBytes[6],
+            addressBytes[7]
+        };
+
+        segmentedFile.writeTransactionalBytes(
+                writeTransaction
+        );
 
     }
 

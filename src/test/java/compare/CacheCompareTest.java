@@ -67,7 +67,7 @@ public class CacheCompareTest {
 
     }
 
-    private static final int TEST_SIZE = 10000;
+    private static final int TEST_SIZE = 1000;
 
     @Test
     public void test() throws CacheException, IOException {

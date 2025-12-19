@@ -200,13 +200,6 @@ public class SegmentedFile {
 
     public long getFreeSegment(final int lengthRequired) throws ReadFailure, OutOfSpaceException, SpaceFragementedException {
 
-        //skip hitting the file system if we know of one in memory
-        final long memory = getFreeMemorySegment(lengthRequired);
-
-        if(memory >= 0) {
-            return memory;
-        }
-
         final List<Long> freeSegments = new ArrayList<>();
         int freeSegmentsTotalSize = 0;
 

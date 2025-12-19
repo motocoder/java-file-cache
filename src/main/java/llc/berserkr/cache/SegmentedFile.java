@@ -9,10 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class SegmentedFile {
 
@@ -27,11 +24,13 @@ public class SegmentedFile {
     public static final byte TRANSITIONAL_STATE = -126;
 
     private final File root;
+    private final SegmentReference reference = new SegmentReference();
+    private final RandomAccessFile writeRandom;
+    private final RandomAccessFile readRandom;
     private long lastKnownAddress = 0;
 
-    private final Set<Pair<Long, Integer>> freeSegments = new HashSet<>();
-
     /**
+     * [x,x,x,x][x][x,x,x,x][x*n] segmentSize, type, fillSize, payload
      *
      * @param root
      */
@@ -49,9 +48,14 @@ public class SegmentedFile {
             throw new IllegalArgumentException("file location must not be a directory " + root);
         }
 
+        try {
+            this.writeRandom = new RandomAccessFile(root, "rws");
+            this.readRandom = new RandomAccessFile(root, "r");
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+
     }
-
-
 
     /**
      *
@@ -65,10 +69,14 @@ public class SegmentedFile {
         try(final RandomAccessFile random = new RandomAccessFile(root, "rws")) {
 
             try {
+
                 random.seek(address + SEGMENT_LENGTH_BYTES_COUNT); //seek to the state byte of the new segment that doesn't exist yet
                 random.write(new byte[]{TRANSITIONAL_STATE});
                 random.write(intToByteArray(segment.length));//write the fill size
                 random.write(segment); //write the payload
+
+                reference.setSegmentType(address, TRANSITIONAL_STATE);
+
             }
             catch (IOException e) {
                 throw new WriteFailure("failed to write " + e.getMessage());
@@ -83,12 +91,13 @@ public class SegmentedFile {
 
     public void writeState(long address, byte state) throws WriteFailure, ReadFailure {
 
-        try(final RandomAccessFile random = new RandomAccessFile(root, "rws")) {
+        try {
 
-            random.seek(address + SEGMENT_LENGTH_BYTES_COUNT);
+            writeRandom.seek(address + SEGMENT_LENGTH_BYTES_COUNT);
 
             try {
-                random.write(new byte[]{state});
+                writeRandom.write(new byte[]{state});
+                reference.setSegmentType(address, state);
             }
             catch (IOException e) {
                 throw new WriteFailure("unknown write error " + e.getMessage(), e);
@@ -114,17 +123,19 @@ public class SegmentedFile {
 
         while (true) {
 
-            try(final RandomAccessFile random = new RandomAccessFile(root, "rws")) {
+            try {
 
-                random.seek(address);
+                readRandom.seek(address);
 
                 final byte[] segmentSize = new byte[SEGMENT_LENGTH_BYTES_COUNT];
 
                 try {
 
-                    random.readFully(segmentSize, 0, segmentSize.length);
+                    readRandom.readFully(segmentSize, 0, segmentSize.length);
 
                     final int segmentLength = bytesToInt(segmentSize);
+
+                    reference.setSegmentSize(address, segmentLength);
 
                     address += segmentLength + SEGMENT_LENGTH_BYTES_COUNT + 1 + SEGMENT_LENGTH_BYTES_COUNT ;
 
@@ -132,14 +143,17 @@ public class SegmentedFile {
                 catch (EOFException e) {
 
                     try {
-                        random.seek(address + SEGMENT_LENGTH_BYTES_COUNT); //seek to the state byte of the new segment that doesn't exist yet
-                        random.write(new byte[]{TRANSITIONAL_STATE});
-                        random.seek(address + SEGMENT_LENGTH_BYTES_COUNT + 1 + /*fill length*/SEGMENT_LENGTH_BYTES_COUNT);
-                        random.write(segment);
-                        random.seek(address);
-                        random.write(intToByteArray(segment.length));
-                        random.seek(address + SEGMENT_LENGTH_BYTES_COUNT + 1);
-                        random.write(intToByteArray(segment.length)); //data fill is same size as the segment since its a new segment
+                        writeRandom.seek(address + SEGMENT_LENGTH_BYTES_COUNT); //seek to the state byte of the new segment that doesn't exist yet
+                        writeRandom.write(new byte[]{TRANSITIONAL_STATE});
+                        writeRandom.seek(address + SEGMENT_LENGTH_BYTES_COUNT + 1 + /*fill length*/SEGMENT_LENGTH_BYTES_COUNT);
+                        writeRandom.write(segment);
+                        writeRandom.seek(address);
+                        writeRandom.write(intToByteArray(segment.length));
+                        writeRandom.seek(address + SEGMENT_LENGTH_BYTES_COUNT + 1);
+                        writeRandom.write(intToByteArray(segment.length)); //data fill is same size as the segment since its a new segment
+
+                        reference.setSegmentType(address, TRANSITIONAL_STATE);
+                        reference.setSegmentSize(address, segment.length);
 
                         this.lastKnownAddress = address;
                         return address; //return it in transitional state
@@ -159,76 +173,63 @@ public class SegmentedFile {
         }
     }
 
-    public void addFreeSegment(final long address, int segmentLength) {
-        this.freeSegments.add(new Pair<>(address, segmentLength));
-    }
-
-    private void removeMemorySegment(long free) {
-
-        Pair<Long, Integer> memorySegment = null;
-        for(final Pair<Long, Integer> pair : freeSegments) {
-
-            if(pair.getOne() == free) {
-                memorySegment = pair;
-                break;
-            }
-        }
-
-        freeSegments.remove(memorySegment);
-
-    }
-
-    public long getFreeMemorySegment(final int lengthRequired) {
-        Pair<Long, Integer> memorySegment = null;
-
-        for(final Pair<Long, Integer> pair : freeSegments) {
-
-            if(pair.getTwo() >= lengthRequired) {
-                memorySegment = pair;
-                break;
-            }
-        }
-
-        if(memorySegment != null) {
-            freeSegments.remove(memorySegment);
-            return memorySegment.getOne();
-        }
-
-        return -1;
-
-    }
-
     public long getFreeSegment(final int lengthRequired) throws ReadFailure, OutOfSpaceException, SpaceFragementedException {
+
+        final Long foundEarly = reference.getSuitableSegment(lengthRequired);
+
+        if(foundEarly != null) {
+            return foundEarly;
+        }
 
         final List<Long> freeSegments = new ArrayList<>();
         int freeSegmentsTotalSize = 0;
 
-        try(final RandomAccessFile random = new RandomAccessFile(root, "r")) {
+        try {
 
             long address = 0;
 
             while (true) {
 
                 final int segmentLength;
-                final byte segmentState;
+                Byte segmentState = reference.getSegmentType(address);
 
                 {
 
-                    //go to the next address
-                    random.seek(address);
+                    switch(segmentState) {
+                        case BOUND_STATE:
+                        case TRANSITIONAL_STATE: {
 
-                    final byte[] segmentSize = new byte[SEGMENT_LENGTH_BYTES_COUNT + 1];
+                            segmentLength = 0;
+                            break;
+                        }
+                        case FREE_STATE: {
+                            segmentLength = reference.getSegmentSize(address);
+                            break;
+                        }
+                        case null :
+                        default: {
+                            //go to the next address
+                            readRandom.seek(address);
 
-                    try {
-                        //read in the size of this segment
-                        random.readFully(segmentSize, 0, segmentSize.length);
+                            final byte[] segmentSize = new byte[SEGMENT_LENGTH_BYTES_COUNT + 1];
+
+                            try {
+                                //read in the size of this segment
+                                readRandom.readFully(segmentSize, 0, segmentSize.length);
+                            }
+                            catch (EOFException e) {
+                                throw new OutOfSpaceException("out of free or fractured segments");
+                            }
+
+                            segmentState = segmentSize[4];//random.readByte();
+                            segmentLength = bytesToInt(new byte[] {segmentSize[0], segmentSize[1], segmentSize[2], segmentSize[3]});
+
+                            reference.setSegmentSize(address, segmentLength);
+                            reference.setSegmentType(address, segmentState);
+                            break;
+                        }
+
                     }
-                    catch (EOFException e) {
-                        throw new OutOfSpaceException("out of free or fractured segments");
-                    }
-
-                    segmentState = segmentSize[4];//random.readByte();
-                    segmentLength = bytesToInt(new byte[] {segmentSize[0], segmentSize[1], segmentSize[2], segmentSize[3]});
 
                 }
 
@@ -244,15 +245,18 @@ public class SegmentedFile {
                         freeSegments.add(address);
                         freeSegmentsTotalSize += segmentLength;
 
-                        addFreeSegment(address, segmentLength);
-
                         final int accumulatedMetaSize =
                             ((freeSegments.size() - 1 /* first item we keep meta data*/) * (SEGMENT_LENGTH_BYTES_COUNT + 1 + SEGMENT_LENGTH_BYTES_COUNT));
 
                         if((freeSegmentsTotalSize + accumulatedMetaSize) >= lengthRequired) {
 
-                            for(long free : freeSegments) {
-                                removeMemorySegment(free);
+                            for(int i = 1; i < freeSegments.size(); i++) {
+
+                                final int oldSize = reference.getSegmentSize(freeSegments.get(i));
+
+                                reference.setSegmentType(freeSegments.get(i), null);
+                                reference.setSegmentSize(freeSegments.get(i), 0, oldSize);
+
                             }
 
                             throw new SpaceFragementedException(freeSegments.get(0), freeSegmentsTotalSize + accumulatedMetaSize);
@@ -292,45 +296,44 @@ public class SegmentedFile {
      */
     public void setSegmentSize(long address, int segmentSize) throws WriteFailure, ReadFailure {
 
-        try(final RandomAccessFile random = new RandomAccessFile(root, "rws")) {
+        try {
 
-            try {
-                random.seek(address); //seek to the state byte of the new segment that doesn't exist yet
-                random.write(intToByteArray(segmentSize));
-            }
-            catch (IOException e) {
-                throw new WriteFailure("failed to write " + e.getMessage());
-            }
+            writeRandom.seek(address); //seek to the state byte of the new segment that doesn't exist yet
+            writeRandom.write(intToByteArray(segmentSize));
 
-        } catch (FileNotFoundException e) {
-            throw new ReadFailure("file not found: " + root, e);
-        } catch (IOException e) {
-            throw new ReadFailure("file not opened " + root, e);
+            reference.setSegmentSize(address, segmentSize);
+
+        }
+        catch (IOException e) {
+            throw new WriteFailure("failed to write " + e.getMessage());
         }
 
     }
 
     public byte[] readSegment(long address) throws ReadFailure {
 
-        try(final RandomAccessFile random = new RandomAccessFile(root, "r")) {
+        try {
 
-            random.seek(address);
+            readRandom.seek(address);
 
             final byte[] segmentSize = new byte[SEGMENT_LENGTH_BYTES_COUNT];
             final byte[] segmentFillSize = new byte[SEGMENT_LENGTH_BYTES_COUNT];
 
-            random.readFully(segmentSize, 0, segmentSize.length);
+            readRandom.readFully(segmentSize, 0, segmentSize.length);
 
-            final byte segmentState = random.readByte();
-            random.readFully(segmentFillSize, 0, segmentFillSize.length);
+            final byte segmentState = readRandom.readByte();
+            readRandom.readFully(segmentFillSize, 0, segmentFillSize.length);
             final int segmentLength = bytesToInt(segmentSize);
             final int segmentFillLength = bytesToInt(segmentFillSize);
+
+            reference.setSegmentType(address, segmentState);
+            reference.setSegmentSize(address, segmentLength);
 
             if(segmentState == BOUND_STATE) {
 
                 final byte [] returnVal =  new byte[segmentFillLength];
 
-                random.readFully(returnVal, 0, segmentFillLength);
+                readRandom.readFully(returnVal, 0, segmentFillLength);
 
                 return returnVal;
             }
@@ -460,5 +463,110 @@ public class SegmentedFile {
             throw new WriteFailure("unknown write error " + e.getMessage(), e);
         }
 
+    }
+
+
+    private static class SegmentReference {
+
+        private final Map<Long, Byte> segmentTypes = new HashMap<>();
+        private final TreeMap<Integer, Set<Long>> segmentBySize = new TreeMap<>(); //could use a tree structure here maybe
+        private final Map<Long, Integer> segmentSizes = new HashMap<>();
+
+        public void setSegmentType(long address, Byte type) {
+            this.segmentTypes.put(address, type);
+        }
+
+        private Long getSuitableSegment(int segmentLength) {
+
+            Map.Entry<Integer, Set<Long>> entry;
+
+            while(true) {
+
+                entry = segmentBySize.ceilingEntry(segmentLength);
+
+                if(entry != null) {
+
+                    if(entry.getKey() < segmentLength) {
+                        throw new IllegalStateException();
+                    }
+
+                    for(final long address : entry.getValue()) {
+                        //if we found a free entry that fits return it
+                        if(segmentTypes.get(address) == FREE_STATE) {
+                            //TODO this is sucking down the cpu but I'm not sure how to deal with it without adding a lot of complication.
+                            return  address;
+                        }
+                    }
+
+                }
+                else {
+                    return null;
+                }
+
+                //go bigger and try again.
+                segmentLength = entry.getKey() + 1;
+
+            }
+
+        }
+
+        public void setSegmentSize(long address, int size) {
+
+            segmentSizes.put(address, size);
+
+            Set<Long> addresses = segmentBySize.get(size);
+            if(addresses == null) {
+                addresses = new HashSet<>();
+                segmentBySize.put(size, addresses);
+            }
+
+            addresses.add(address);
+
+        }
+
+        public void setSegmentSize(long address, int newSize, int oldSize) {
+
+
+
+
+            {
+
+                Set<Long> addresses = segmentBySize.get(oldSize);
+
+                if (addresses == null) {
+                    addresses = new HashSet<>();
+                    segmentBySize.put(newSize, addresses);
+                }
+
+                addresses.remove(address);
+
+            }
+
+            if(newSize > 0) {
+
+                segmentSizes.put(address, newSize);
+
+                Set<Long> addresses = segmentBySize.get(newSize);
+                if (addresses == null) {
+                    addresses = new HashSet<>();
+                    segmentBySize.put(newSize, addresses);
+                }
+
+                addresses.add(address);
+
+            }
+            else {
+                segmentSizes.remove(address);
+            }
+
+        }
+
+        public Byte getSegmentType(long address) {
+            return segmentTypes.get(address);
+        }
+
+        public int getSegmentSize(long address) {
+            return segmentSizes.get(address);
+        }
     }
 }

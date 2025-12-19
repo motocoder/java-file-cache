@@ -68,6 +68,7 @@ public class CacheCompareTest {
     }
 
     private static final int TEST_SIZE = 1000;
+    private static final int READ_LOOPS = 1000;
 
     @Test
     public void test() throws CacheException, IOException {
@@ -90,13 +91,15 @@ public class CacheCompareTest {
 
         final Map<String, String> readData = new HashMap<>();
 
-        for(final Map.Entry<String, String> entry : data.entrySet()) {
+        for(int i = 0; i < READ_LOOPS; i++) {
+            for (final Map.Entry<String, String> entry : data.entrySet()) {
 
-            final String keyString = entry.getKey();
-            final String value = new String(hashCache.get(keyString.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
+                final String keyString = entry.getKey();
+                final String value = new String(hashCache.get(keyString.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
 
-            readData.put(keyString, value);
+                readData.put(keyString, value);
 
+            }
         }
 
         assertEquals(readData.size(), data.size());
@@ -125,19 +128,23 @@ public class CacheCompareTest {
 
         }
 
+        System.out.println("data written " + (System.currentTimeMillis() - startTime));
+
         final Map<String, String> readData = new HashMap<>();
 
-        for(final Map.Entry<String, String> entry : data.entrySet()) {
+        for(int i = 0; i < READ_LOOPS; i++) {
+            for (final Map.Entry<String, String> entry : data.entrySet()) {
 
-            final String keyString = entry.getKey();
+                final String keyString = entry.getKey();
 
-            DiskLruCache.Snapshot snapshot = cache.get(keyString);
+                DiskLruCache.Snapshot snapshot = cache.get(keyString);
 
-            final String value = snapshot.getString(0);
-            final String value2= snapshot.getString(1);
+                final String value = snapshot.getString(0);
+                final String value2 = snapshot.getString(1);
 
-            readData.put(keyString, value);
+                readData.put(keyString, value);
 
+            }
         }
 
         assertEquals(readData.size(), data.size());

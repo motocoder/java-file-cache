@@ -50,9 +50,9 @@ public class SegmentedFileTest {
 
         final int size = 4449929;
 
-        final byte [] sizeBytes = SegmentedFile.intToByteArray(size);
+        final byte [] sizeBytes = SegmentedStreamingFile.intToByteArray(size);
 
-        assertEquals(size, SegmentedFile.bytesToInt(sizeBytes));
+        assertEquals(size, SegmentedStreamingFile.bytesToInt(sizeBytes));
     }
 
     @Test
@@ -91,7 +91,7 @@ public class SegmentedFileTest {
 
             final long address = segmentedFile.writeToEnd(new ByteArrayInputStream(junk));
 
-            segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
+            segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
 
             addressesUsed.add(address);
 
@@ -159,7 +159,7 @@ public class SegmentedFileTest {
 
         //deletes the data by marking it free
         for(final long address : halfAddresses.keySet()) {
-            segmentedFile.writeState(address, SegmentedFile.FREE_STATE);
+            segmentedFile.writeState(address, SegmentedStreamingFile.FREE_STATE);
         }
 
         System.out.println("deleted " + halfAddresses.size());
@@ -181,7 +181,7 @@ public class SegmentedFileTest {
                     final long freeAddress = segmentedFile.getFreeSegment(write.length);
 
                     segmentedFile.write(freeAddress, write);
-                    segmentedFile.writeState(freeAddress, SegmentedFile.BOUND_STATE);
+                    segmentedFile.writeState(freeAddress, SegmentedStreamingFile.BOUND_STATE);
 
                     wroteToFree.add(freeAddress);
 
@@ -193,7 +193,7 @@ public class SegmentedFileTest {
                     fragmentedCount++;
 
                     segmentedFile.write(e.getAddress(), write);
-                    segmentedFile.writeState(e.getAddress(), SegmentedFile.BOUND_STATE);
+                    segmentedFile.writeState(e.getAddress(), SegmentedStreamingFile.BOUND_STATE);
 
                     wroteToFree.add(e.getAddress());
                 }
@@ -213,11 +213,11 @@ public class SegmentedFileTest {
     }
 
     @Test
-    public void testTransactionReversal() throws ReadFailure, WriteFailure, OutOfSpaceException {
+    public void testTransactionReversal() throws ReadFailure, WriteFailure, OutOfSpaceException, IOException {
 
         final int JUNK_COUNT = 100;
 
-        final SegmentedFile segmentedFile = new SegmentedFile(segmentFile);
+        final SegmentedStreamingFile segmentedFile = new SegmentedStreamingFile(segmentFile);
 
         final Set<byte []> junkBytes = new HashSet<byte[]>();
         final Set<String> junkStrings = new HashSet<>();
@@ -242,9 +242,9 @@ public class SegmentedFileTest {
         //write the junk data into segments at the end
         for(final byte [] junk : junkBytes) {
 
-            final long address = segmentedFile.writeToEnd(junk);
+            final long address = segmentedFile.writeToEnd(new ByteArrayInputStream(junk));
 
-            segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
+            segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
 
             addressesUsed.add(address);
 
@@ -254,7 +254,7 @@ public class SegmentedFileTest {
 
         for(final long address : addressesUsed) {
 
-            wasWrote.add(segmentedFile.readSegment(address));
+            wasWrote.add(SegmentedStreamingHashDataManager.convertInputStreamToBytes(segmentedFile.readSegment(address)));
         }
 
         assertEquals(junkBytes.size(), wasWrote.size());
@@ -279,13 +279,13 @@ public class SegmentedFileTest {
 
             final Long addressToRemove = addressesUsed.remove((int) (Math.random() * addressesUsed.size()));
 
-            halfAddresses.put(addressToRemove, segmentedFile.readSegment(addressToRemove));
+            halfAddresses.put(addressToRemove, SegmentedStreamingHashDataManager.convertInputStreamToBytes(segmentedFile.readSegment(addressToRemove)));
 
         }
 
         //deletes the data by marking it free
         for(final long address : halfAddresses.keySet()) {
-            segmentedFile.writeState(address, SegmentedFile.FREE_STATE);
+            segmentedFile.writeState(address, SegmentedStreamingFile.FREE_STATE);
         }
 
         //ok we have the segmented file into a state of being half empty, this can be used now for our tests
@@ -294,13 +294,13 @@ public class SegmentedFileTest {
             //test reversing a write
             final long address = segmentedFile.getFreeSegment(50);
 
-            SegmentedHashDataManager.startWritingTransaction(segmentedFile, address);
+            SegmentedStreamingHashDataManager.startWritingTransaction(segmentedFile, address);
 
-            segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
+            segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
 
             byte segmentState = segmentedFile.readSegmentState(address);
 
-            assertEquals(SegmentedFile.BOUND_STATE, segmentState);
+            assertEquals(SegmentedStreamingFile.BOUND_STATE, segmentState);
 
             segmentedFile.validateData();
 
@@ -308,20 +308,20 @@ public class SegmentedFileTest {
 
             segmentState = segmentedFile.readSegmentState(address);
 
-            assertEquals(SegmentedFile.FREE_STATE, segmentState);
+            assertEquals(SegmentedStreamingFile.FREE_STATE, segmentState);
 
         }
 
         {
             final long address = segmentedFile.findEnd();
 
-            SegmentedHashDataManager.startAddTransaction(segmentedFile, 50);
+            SegmentedStreamingHashDataManager.startAddTransaction(segmentedFile, 50);
 
             segmentedFile.validateData();
 
             byte segmentState = segmentedFile.readSegmentState(address);
 
-            assertEquals(SegmentedFile.FREE_STATE, segmentState); //state didn't exist before
+            assertEquals(SegmentedStreamingFile.FREE_STATE, segmentState); //state didn't exist before
 
         }
 
@@ -329,13 +329,13 @@ public class SegmentedFileTest {
 
             final long address = segmentedFile.findEnd();
 
-            SegmentedHashDataManager.startMergeTransaction(segmentedFile, address, 50);
+            SegmentedStreamingHashDataManager.startMergeTransaction(segmentedFile, address, 50);
 
             segmentedFile.validateData();
 
             byte segmentState = segmentedFile.readSegmentState(address);
 
-            assertEquals(SegmentedFile.FREE_STATE, segmentState); //state didn't exist before
+            assertEquals(SegmentedStreamingFile.FREE_STATE, segmentState); //state didn't exist before
 
         }
 

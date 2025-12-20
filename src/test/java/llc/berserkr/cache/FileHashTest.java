@@ -446,7 +446,7 @@ public class FileHashTest {
 
         dataFolder.createNewFile();
 
-        final HashDataManager<byte [], byte []> manager = new SegmentedHashDataManager(dataFolder);
+        final HashDataManager<byte [], byte []> manager = new SegmentedStreamingHashDataManager(dataFolder);
 
         final FileHash< byte [],  byte []> hash = new FileHash<byte[], byte[]>(root, manager, 1000) {
             @Override
@@ -513,7 +513,7 @@ public class FileHashTest {
 
         dataFolder.createNewFile();
 
-        final HashDataManager<byte [], byte []> manager = new SegmentedHashDataManager(dataFolder);
+        final HashDataManager<byte [], byte []> manager = new SegmentedStreamingHashDataManager(dataFolder);
 
         final FileHash< byte [],  byte []> hash = new FileHash<byte[], byte[]>(root, manager, 1000) {
             @Override
@@ -585,9 +585,9 @@ public class FileHashTest {
             pairsBytes.add(new Pair<>(pair.getOne().getBytes(StandardCharsets.UTF_8), pair.getTwo().getBytes(StandardCharsets.UTF_8)));
         }
 
-        final byte [] pairData = SegmentedHashDataManager.getPairData(pairsBytes);
+        final byte [] pairData = SegmentedStreamingHashDataManager.getPairData(pairsBytes);
 
-        final Set<Pair<byte [], byte []>> pairsBytesRestored = SegmentedHashDataManager.getSegmentPairs(pairData);
+        final Set<Pair<byte [], byte []>> pairsBytesRestored = SegmentedStreamingHashDataManager.getSegmentPairs(pairData);
         final Set<Pair<String, String>> pairsStringRestored = new HashSet<>();
 
         for(Pair<byte [], byte []> restored : pairsBytesRestored) {

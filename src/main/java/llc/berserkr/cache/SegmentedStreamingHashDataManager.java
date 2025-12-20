@@ -50,7 +50,7 @@ public class SegmentedStreamingHashDataManager implements HashDataManager<byte [
             startWritingTransaction(segmentedFile, blobIndex);
 
             //delete the previous item
-            segmentedFile.writeState(blobIndex, SegmentedFile.FREE_STATE);
+            segmentedFile.writeState(blobIndex, SegmentedStreamingFile.FREE_STATE);
 
             endTransactions(segmentedFile);
 
@@ -66,7 +66,7 @@ public class SegmentedStreamingHashDataManager implements HashDataManager<byte [
             startWritingTransaction(segmentedFile, free);
 
             segmentedFile.write(free, pairData);
-            segmentedFile.writeState(free, SegmentedFile.BOUND_STATE);
+            segmentedFile.writeState(free, SegmentedStreamingFile.BOUND_STATE);
 
             endTransactions(segmentedFile);
 
@@ -82,16 +82,16 @@ public class SegmentedStreamingHashDataManager implements HashDataManager<byte [
             }
 
             final long address = e.getAddress();
-            final long splitAddress = address + SegmentedFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedFile.SEGMENT_LENGTH_BYTES_COUNT + split1;
+            final long splitAddress = address + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + split1;
 
             startWritingTransaction(segmentedFile, address);
 
-            segmentedFile.setSegmentSize(splitAddress, split2 - (SegmentedFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedFile.SEGMENT_LENGTH_BYTES_COUNT));
-            segmentedFile.writeState(splitAddress, SegmentedFile.FREE_STATE);
+            segmentedFile.setSegmentSize(splitAddress, split2 - (SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT));
+            segmentedFile.writeState(splitAddress, SegmentedStreamingFile.FREE_STATE);
 
             segmentedFile.setSegmentSize(address, split1);
             segmentedFile.write(address, pairData);
-            segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
+            segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
 
             endTransactions(segmentedFile);
 
@@ -103,7 +103,7 @@ public class SegmentedStreamingHashDataManager implements HashDataManager<byte [
 
             segmentedFile.setSegmentSize(e.getAddress(), e.getSegmentSize());
             segmentedFile.write(e.getAddress(), pairData);
-            segmentedFile.writeState(e.getAddress(), SegmentedFile.BOUND_STATE);
+            segmentedFile.writeState(e.getAddress(), SegmentedStreamingFile.BOUND_STATE);
 
             endTransactions(segmentedFile);
 
@@ -117,7 +117,7 @@ public class SegmentedStreamingHashDataManager implements HashDataManager<byte [
                 //no free segments, add to the end of the segment file
                 final long address = segmentedFile.writeToEnd(is);
 
-                segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
+                segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
 
                 endTransactions(segmentedFile);
 
@@ -131,10 +131,10 @@ public class SegmentedStreamingHashDataManager implements HashDataManager<byte [
 
     public static void startAddTransaction(SegmentedStreamingFile segmentedFile, int length) throws ReadFailure, WriteFailure {
 
-        final byte[] lengthBytes = SegmentedFile.intToByteArray(length);
+        final byte[] lengthBytes = SegmentedStreamingFile.intToByteArray(length);
 
         final byte [] writeTransaction = new byte[] {
-            SegmentedFile.ADD_END_TRANSACTION, //if merge fails we will finish the merge but leave it empty
+            SegmentedStreamingFile.ADD_END_TRANSACTION, //if merge fails we will finish the merge but leave it empty
             lengthBytes[0],
             lengthBytes[1],
             lengthBytes[2],
@@ -149,11 +149,11 @@ public class SegmentedStreamingHashDataManager implements HashDataManager<byte [
 
     public static void startMergeTransaction(SegmentedStreamingFile segmentedFile, long address, int segmentSize) throws ReadFailure, WriteFailure {
 
-        final byte[] addressBytes = SegmentedFile.longToByteArray(address);
-        final byte[] lengthBytes = SegmentedFile.intToByteArray(segmentSize);
+        final byte[] addressBytes = SegmentedStreamingFile.longToByteArray(address);
+        final byte[] lengthBytes = SegmentedStreamingFile.intToByteArray(segmentSize);
 
         final byte [] writeTransaction = new byte[] {
-                SegmentedFile.MERGE_TRANSACTION, //if merge fails we will finish the merge but leave it empty
+                SegmentedStreamingFile.MERGE_TRANSACTION, //if merge fails we will finish the merge but leave it empty
                 addressBytes[0],
                 addressBytes[1],
                 addressBytes[2],
@@ -179,7 +179,7 @@ public class SegmentedStreamingHashDataManager implements HashDataManager<byte [
         startWritingTransaction(segmentedFile, blobIndex);
 
         //delete the previous item
-        segmentedFile.writeState(blobIndex, SegmentedFile.FREE_STATE);
+        segmentedFile.writeState(blobIndex, SegmentedStreamingFile.FREE_STATE);
 
         endTransactions(segmentedFile);
     }
@@ -205,8 +205,8 @@ public class SegmentedStreamingHashDataManager implements HashDataManager<byte [
 
                 final Pair<byte [], byte []> pair = pairs.get(i);
 
-                out.write(SegmentedFile.intToByteArray(pair.getOne().length + pair.getTwo().length));
-                out.write(SegmentedFile.intToByteArray(pair.getOne().length));
+                out.write(SegmentedStreamingFile.intToByteArray(pair.getOne().length + pair.getTwo().length));
+                out.write(SegmentedStreamingFile.intToByteArray(pair.getOne().length));
                 out.write(pair.getOne());
                 out.write(pair.getTwo());
 
@@ -234,8 +234,8 @@ public class SegmentedStreamingHashDataManager implements HashDataManager<byte [
 
         for(int i = 0; i < count; i++) {
 
-            final int pairLength = SegmentedFile.bytesToInt(new byte[] {data[dataBase], data[dataBase + 1], data[dataBase + 2], data[dataBase + 3]});
-            final int keyLength = SegmentedFile.bytesToInt(new byte[] {data[dataBase + 4], data[dataBase + 5], data[dataBase + 6], data[dataBase + 7]});
+            final int pairLength = SegmentedStreamingFile.bytesToInt(new byte[] {data[dataBase], data[dataBase + 1], data[dataBase + 2], data[dataBase + 3]});
+            final int keyLength = SegmentedStreamingFile.bytesToInt(new byte[] {data[dataBase + 4], data[dataBase + 5], data[dataBase + 6], data[dataBase + 7]});
 
             final byte [] keyData = new byte[keyLength];
             final byte [] payloadData = new byte[pairLength - keyLength];
@@ -284,9 +284,9 @@ public class SegmentedStreamingHashDataManager implements HashDataManager<byte [
 
     public static void startWritingTransaction(SegmentedStreamingFile segmentedFile, long address) throws ReadFailure, WriteFailure {
 
-        final byte[] addressBytes = SegmentedFile.longToByteArray(address);
+        final byte[] addressBytes = SegmentedStreamingFile.longToByteArray(address);
         final byte [] writeTransaction = new byte[] {
-            SegmentedFile.WRITING_TRANSACTION, //reversal of a write just deletes it anyway
+            SegmentedStreamingFile.WRITING_TRANSACTION, //reversal of a write just deletes it anyway
             addressBytes[0],
             addressBytes[1],
             addressBytes[2],

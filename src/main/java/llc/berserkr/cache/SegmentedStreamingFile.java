@@ -15,7 +15,7 @@ public class SegmentedStreamingFile {
     private static final Logger logger = LoggerFactory.getLogger(SegmentedStreamingFile.class);
 
     //bytes at the beginning of each segment to construct into an int for the segment length
-    private static final int SEGMENT_LENGTH_BYTES_COUNT = 4;
+    public static final int SEGMENT_LENGTH_BYTES_COUNT = 4;
     private static final int START_OFFSET = 1024; //leave 1024 bytes for use of transactions
 
     //byte range -128 to 127

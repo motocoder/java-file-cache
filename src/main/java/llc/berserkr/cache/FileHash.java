@@ -168,7 +168,7 @@ public abstract class FileHash<Key, Value> {
                
                if(blobIndexAfterSet != blobIndex) {
 
-                   final byte[] bytesIndex = SegmentedFile.longToByteArray(blobIndexAfterSet);
+                   final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(blobIndexAfterSet);
                    
                    random.seek(hashedIndex);
                    random.write(bytesIndex);
@@ -221,7 +221,7 @@ public abstract class FileHash<Key, Value> {
                 }
              
                 //convert the values read into an index
-                long blobIndex = SegmentedFile.bytesToLong(currentKeyIn);
+                long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
              
                 Value returnVal = null;
                
@@ -295,7 +295,7 @@ public abstract class FileHash<Key, Value> {
                }
              
                //convert to an index
-               long blobIndex = SegmentedFile.bytesToLong(currentKeyIn);
+               long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
                
                //if there is a value on this hash, retrieve its value
                if(blobIndex >= 0) {
@@ -306,7 +306,7 @@ public abstract class FileHash<Key, Value> {
                    
                    if(blobs == null) { //data corrupt lets remove our reference.
                        
-                       final byte[] bytesIndex = SegmentedFile.longToByteArray(-1L);
+                       final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(-1L);
                        
                        random.seek(hashedIndex);
                        random.write(bytesIndex); 
@@ -339,7 +339,7 @@ public abstract class FileHash<Key, Value> {
                            
                            //if blobs is empty, remove the hash as well.
                                                       
-                           final byte[] bytesIndex = SegmentedFile.longToByteArray(-1L);
+                           final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(-1L);
                          
                            random.seek(hashedIndex);
                            random.write(bytesIndex); 
@@ -349,7 +349,7 @@ public abstract class FileHash<Key, Value> {
 
                            final long newAddress = blobManager.setBlobs(blobIndex, blobs);
 
-                           final byte[] bytesIndex = SegmentedFile.longToByteArray(newAddress);
+                           final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(newAddress);
 
                            random.seek(hashedIndex);
                            random.write(bytesIndex);
@@ -398,7 +398,7 @@ public abstract class FileHash<Key, Value> {
                }
              
                //convert to an index
-               long blobIndex = SegmentedFile.bytesToLong(currentKeyIn);
+               long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
                
                //if there is a value on this hash, retrieve its value
                if(blobIndex >= 0) {
@@ -407,7 +407,7 @@ public abstract class FileHash<Key, Value> {
                    
                    //if blobs is empty, remove the hash as well.
                                       
-                   final byte[] bytesIndex = SegmentedFile.longToByteArray(-1L);
+                   final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(-1L);
                  
                    random.seek(hashedIndex);
                    random.write(bytesIndex); 
@@ -444,7 +444,7 @@ public abstract class FileHash<Key, Value> {
         }
         catch (Exception e) {
 
-            SegmentedFile.delete(file.getAbsolutePath());
+            SegmentedStreamingFile.delete(file.getAbsolutePath());
 
             try {
                 initFile();

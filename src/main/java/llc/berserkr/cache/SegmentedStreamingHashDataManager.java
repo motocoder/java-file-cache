@@ -304,6 +304,11 @@ public class SegmentedStreamingHashDataManager implements HashDataManager<byte [
     }
 
     public static byte[] convertInputStreamToBytes(InputStream inputStream) throws IOException {
+
+        if(inputStream == null) {
+            return null;
+        }
+
         try { // Automatic resource management (try-with-resources) closes the stream
             return inputStream.readAllBytes();
         }

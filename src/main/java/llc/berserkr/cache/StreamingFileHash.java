@@ -157,29 +157,31 @@ public class StreamingFileHash {
 
     public void giveLock(long key, Object lock) {
 
-        synchronized (hashLocks) {
-            hashLocks.put(key, lock);
-            hashLocks.notifyAll();
-        }
+//        synchronized (hashLocks) {
+//            hashLocks.put(key, lock);
+//            hashLocks.notifyAll();
+//        }
     }
 
     private Object getLock(long key) {
 
-        synchronized (hashLocks) {
+        return new Object();
 
-            while(true) {
-                if (hashLocks.containsKey(key)) {
-                    return hashLocks.remove(key);
-                } else {
-                    try {
-                        hashLocks.wait();
-                    } catch (InterruptedException e) {
-                        logger.warn("Interrupted while waiting for lock", e);
-                    }
-                }
-            }
-
-        }
+//        synchronized (hashLocks) {
+//
+//            while(true) {
+//                if (hashLocks.containsKey(key)) {
+//                    return hashLocks.remove(key);
+//                } else {
+//                    try {
+//                        hashLocks.wait();
+//                    } catch (InterruptedException e) {
+//                        logger.warn("Interrupted while waiting for lock", e);
+//                    }
+//                }
+//            }
+//
+//        }
 
     }
     /**

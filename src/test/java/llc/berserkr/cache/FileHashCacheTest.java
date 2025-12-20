@@ -227,7 +227,7 @@ public class FileHashCacheTest {
 	@Test 
 	public void multiThreadedTest() throws IOException {
 		
-		final ExecutorService pool = Executors.newFixedThreadPool(10);
+		final ExecutorService pool = Executors.newFixedThreadPool(100);
 
         final File tempFolder = new File("./target/test-files/temp-data");
         final File dataFolder = new File("./target/test-files/data");
@@ -243,12 +243,12 @@ public class FileHashCacheTest {
         final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                 new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
 
-		final Cache<String, InputStream> cache = new SynchronizedCache<String, InputStream>(keyConvertingCache);
+//		final Cache<String, InputStream> cache = new SynchronizedCache<String, InputStream>(keyConvertingCache);
+        final Cache<String, InputStream> cache = keyConvertingCache;
 		
-		logger.info("created cache");
-		
-		for (int x = 0; x < 9; x++) {
-			
+		for (int x = 0; x < 99; x++) {
+
+            final int pre = x;
 			pool.execute(
                     
                 new Runnable() {
@@ -259,7 +259,7 @@ public class FileHashCacheTest {
 						try {
 					
 					        // create varying length strings by concatenation
-							final String value = "adasdfasdfasfdasfasdfdfsdf";
+							final String value = pre + "adasdfasdfasfdasfasdfdfsdf";
 							final Random random = new Random();
 					        
 							final String key = "e" + String.valueOf(random.nextInt(999999));
@@ -267,13 +267,17 @@ public class FileHashCacheTest {
 					        logger.info("putting value: " + value + " with the key of " + key);
 					        
 					        // TEST PUT, GET, REMOVE, and EXISTS
-					        
-					        cache.put(key, new ByteArrayInputStream(value.getBytes()));
-					        
-					        final String returnValue = new String(SegmentedStreamingHashDataManager.convertInputStreamToBytes(cache.get(key)));
-					        
-					        assertEquals(value, returnValue);
-					        assertEquals(cache.exists(key), true);
+
+                            for(int i = 0; i < 10; i++) {
+                                cache.put(key, new ByteArrayInputStream(value.getBytes()));
+
+                                for(int j = 0; j < 100; j++) {
+                                    final String returnValue = new String(SegmentedStreamingHashDataManager.convertInputStreamToBytes(cache.get(key)));
+
+                                    assertEquals(value, returnValue);
+                                    assertEquals(cache.exists(key), true);
+                                }
+                            }
 					        
 						} catch (ResourceException e) {
 							e.printStackTrace();
@@ -290,10 +294,10 @@ public class FileHashCacheTest {
 		}
 		
 		pool.shutdown();
-		
+
 		try {
 			pool.awaitTermination(1000, TimeUnit.SECONDS);
-		} 
+		}
 		catch (InterruptedException e1) {
 			e1.printStackTrace();
 		}

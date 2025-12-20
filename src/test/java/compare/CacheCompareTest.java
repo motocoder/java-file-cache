@@ -1,24 +1,37 @@
 package compare;
 
 import com.jakewharton.disklrucache.DiskLruCache;
+import llc.berserkr.cache.Cache;
 import llc.berserkr.cache.FileHashCache;
+import llc.berserkr.cache.KeyConvertingCache;
 import llc.berserkr.cache.SegmentedStreamingHashDataManager;
+import llc.berserkr.cache.converter.BytesStringConverter;
+import llc.berserkr.cache.converter.ReverseConverter;
 import llc.berserkr.cache.exception.ResourceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.fest.assertions.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CacheCompareTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(CacheCompareTest.class);
 
     private final int appVersion = 100;
 
@@ -107,6 +120,179 @@ public class CacheCompareTest {
         assertEquals(readData, data);
 
         System.out.println("test time: " + (System.currentTimeMillis() - startTime));
+
+    }
+
+    void deleteRoot (File root) {
+        if (root.exists()) {
+
+            final File[] listed = root.listFiles();
+
+            if(listed != null) {
+                for (File cacheFile: listed){
+                    cacheFile.delete();
+                }
+            }
+
+            root.delete();
+        }
+    }
+    private final int MULTI_WRITES = 10;
+    private final int MULTI_READS = 10000;
+    private final int THREADS = 200;
+
+    @Test
+    public void multiThreadedTest() throws IOException {
+
+        final ExecutorService pool = Executors.newFixedThreadPool(THREADS);
+
+        final File tempFolder = new File("./target/test-files/temp-data");
+        final File dataFolder = new File("./target/test-files/data");
+
+        deleteRoot(tempFolder);
+        deleteRoot(dataFolder);
+
+        tempFolder.mkdirs();
+        dataFolder.mkdirs();
+
+        final Cache<byte [], InputStream> fileCache = new FileHashCache(dataFolder);
+
+        final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
+                new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
+
+//		final Cache<String, InputStream> cache = new SynchronizedCache<String, InputStream>(keyConvertingCache);
+        final Cache<String, InputStream> cache = keyConvertingCache;
+
+        for (int x = 0; x < THREADS -1; x++) {
+
+            final int pre = x;
+            pool.execute(
+
+                    new Runnable() {
+
+                        @Override
+                        public void run() {
+
+                            try {
+
+                                // create varying length strings by concatenation
+                                final String value = pre + "adasdfasdfasfdasfasdfdfsdf";
+                                final Random random = new Random();
+
+                                final String key = "e" + String.valueOf(random.nextInt(999999));
+
+                                logger.info("putting value: " + value + " with the key of " + key);
+
+                                // TEST PUT, GET, REMOVE, and EXISTS
+
+                                for(int i = 0; i < MULTI_WRITES; i++) {
+                                    cache.put(key, new ByteArrayInputStream(value.getBytes()));
+
+                                    for(int j = 0; j < MULTI_READS; j++) {
+                                        final String returnValue = new String(SegmentedStreamingHashDataManager.convertInputStreamToBytes(cache.get(key)));
+
+                                        assertEquals(value, returnValue);
+                                    }
+                                }
+
+                            } catch (ResourceException e) {
+                                e.printStackTrace();
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+
+                        }
+
+                    }
+
+            );
+
+        }
+
+        pool.shutdown();
+
+        try {
+            pool.awaitTermination(1000, TimeUnit.SECONDS);
+        }
+        catch (InterruptedException e1) {
+            e1.printStackTrace();
+        }
+
+    }
+
+    @Test
+    public void multiThreadedLRUTest() throws IOException {
+
+        final ExecutorService pool = Executors.newFixedThreadPool(THREADS);
+
+        final File tempFolder = new File("./target/test-files/temp-data");
+        final File dataFolder = new File("./target/test-files/data");
+
+        deleteRoot(tempFolder);
+        deleteRoot(dataFolder);
+
+        tempFolder.mkdirs();
+        dataFolder.mkdirs();
+
+        for (int x = 0; x < THREADS-1; x++) {
+
+            final int pre = x;
+            pool.execute(
+
+                    new Runnable() {
+
+                        @Override
+                        public void run() {
+
+                            try {
+
+                                // create varying length strings by concatenation
+                                final String value = pre + "adasdfasdfasfdasfasdfdfsdf";
+                                final Random random = new Random();
+
+                                final String key = "e" + String.valueOf(random.nextInt(999999));
+
+                                logger.info("putting value: " + value + " with the key of " + key);
+
+                                // TEST PUT, GET, REMOVE, and EXISTS
+
+                                for(int i = 0; i < MULTI_WRITES; i++) {
+                                    DiskLruCache.Editor creator = cache.edit(key);
+                                    creator.set(0, value);
+                                    creator.set(1, "");
+                                    creator.commit();
+
+                                    for(int j = 0; j < MULTI_READS; j++) {
+
+                                        DiskLruCache.Snapshot snapshot = cache.get(key);
+
+                                        final String valueSnap = snapshot.getString(0);
+                                        final String value2 = snapshot.getString(1);
+
+                                        assertEquals(value, valueSnap);
+                                    }
+                                }
+
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+
+                        }
+
+                    }
+
+            );
+
+        }
+
+        pool.shutdown();
+
+        try {
+            pool.awaitTermination(1000, TimeUnit.SECONDS);
+        }
+        catch (InterruptedException e1) {
+            e1.printStackTrace();
+        }
 
     }
 

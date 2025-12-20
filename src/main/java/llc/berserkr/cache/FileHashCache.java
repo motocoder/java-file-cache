@@ -3,6 +3,7 @@ package llc.berserkr.cache;
 import llc.berserkr.cache.exception.ReadFailure;
 import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.exception.WriteFailure;
+import llc.berserkr.cache.util.WrappingInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,6 +17,7 @@ public class FileHashCache implements Cache<byte [], InputStream> {
     private static final Logger logger = LoggerFactory.getLogger(FileHashCache.class);
     
     private final StreamingFileHash hash;
+    private boolean blockAll;
 
     public FileHashCache(
         final File dataFolder
@@ -51,7 +53,9 @@ public class FileHashCache implements Cache<byte [], InputStream> {
     }
     @Override
     public boolean exists(byte [] key) throws ResourceException {
-    	
+
+        getLock(false,false);
+
         try {
 
             final InputStream is = hash.get(key);
@@ -71,15 +75,64 @@ public class FileHashCache implements Cache<byte [], InputStream> {
         } catch (ReadFailure | WriteFailure e) {
             throw new ResourceException("failure", e);
         }
+        finally {
+            giveLock(false);
+        }
 
     }
 
     @Override
     public InputStream get(byte [] key) throws ResourceException {
+
+        getLock(false,false);
         
         try {
-            return hash.get(key);
+
+            final InputStream is = hash.get(key);
+
+            if(is == null) {
+                giveLock(false);
+                return null;
+            }
+
+            return new WrappingInputStream(is) {
+
+                private boolean sentLock;
+
+                private synchronized void giveLockOnce() {
+
+                    if(sentLock) {
+                        return;
+                    }
+
+                    giveLock(false);
+
+                    sentLock = true;
+
+                }
+
+                @Override
+                public void close() throws IOException {
+                    super.close();
+
+                    giveLockOnce();
+
+                }
+
+                @Override
+                public int available() throws IOException {
+
+                    final int returnVal = super.available();
+
+                    if(returnVal < 0) {
+                        giveLockOnce();
+                    }
+
+                    return returnVal;
+                }
+            };
         } catch (ReadFailure | WriteFailure e) {
+            giveLock(false);
             throw new ResourceException("failure", e);
         }
 
@@ -92,28 +145,38 @@ public class FileHashCache implements Cache<byte [], InputStream> {
 
     @Override
     public void clear() throws ResourceException {
-        
+
+        getLock(true, true);
         try {
             hash.clear();
         } catch (ReadFailure | WriteFailure e) {
             throw new ResourceException("failure", e);
         }
+        finally {
+            giveLock(true);
+        }
+
     }
 
     @Override
     public void remove(byte [] key) throws ResourceException {
-                
+
+        getLock(true, true);
         try {
             hash.remove(key);
         } catch (ReadFailure | WriteFailure e) {
             throw new ResourceException("failure", e);
+        }
+        finally {
+            giveLock(true);
         }
 
     }
 
     @Override
     public void put(byte [] key, InputStream value) throws ResourceException {
-        
+
+        getLock(true, true);
         try {
             
             hash.put(key, value);
@@ -122,7 +185,55 @@ public class FileHashCache implements Cache<byte [], InputStream> {
         catch (ReadFailure | WriteFailure e) {
             throw new ResourceException("failure", e);
         }
+        finally {
+            giveLock(true);
+        }
         
+    }
+
+    private final Object lock = new Object();
+    private int lockCount = 0;
+
+    public void giveLock(boolean unBlockAll) {
+
+        synchronized (lock) {
+            lockCount--;
+
+            if(unBlockAll) {
+                blockAll = false;
+                lock.notifyAll();
+            }
+
+            if(lockCount == 0) {
+                lock.notifyAll();
+            }
+
+        }
+    }
+
+    private void getLock(boolean blockAll, boolean block) {
+
+        synchronized (lock) {
+
+            //if we are blocking to lock it, or everyone is blocked
+            if(block || this.blockAll) {
+
+                //while we are blocking and locks are out or everyone is blocked
+                while((block && lockCount != 0)|| this.blockAll) {
+                    try {
+                        lock.wait();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+
+            this.blockAll = blockAll;
+
+            lockCount++;
+
+        }
+
     }
 
 }

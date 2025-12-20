@@ -70,7 +70,9 @@ public class CacheCompareTest {
     private static final int READ_LOOPS = 1000;
 
     @Test
-    public void test() throws IOException, ResourceException {
+    public void test() throws IOException, ResourceException, InterruptedException {
+
+//        Thread.sleep(5000);
 
         final FileHashCache hashCache = new FileHashCache(hashCacheDir, TEST_SIZE * 2);
 

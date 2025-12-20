@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -109,7 +110,6 @@ public class SegmentedStreamingFile {
                         }
                     );
 
-                    logger.debug("writting free " + address);
                     writeState(address, FREE_STATE);
 
                     writeTransactionalBytes(new byte[] {});
@@ -381,6 +381,7 @@ public class SegmentedStreamingFile {
 
                             if(read > 0) {
                                 totalRead += read;
+
                                 writeRandom.write(buffer, 0, read);
                             }
                             else {
@@ -622,13 +623,13 @@ public class SegmentedStreamingFile {
             //check to make sure the segment is bound otherwise there's nothing to read
             if(segmentState == BOUND_STATE) {
 
-                final InputStream returnVal = new InputStream() {
+                return new InputStream() {
 
-                    int read = 0;
+                    int readFromAvailable = 0;
 
                     @Override
                     public int available() {
-                        return segmentFillLength - read;
+                        return segmentFillLength - readFromAvailable;
                     }
 
                     RandomAccessFile access = readRandom;
@@ -637,7 +638,10 @@ public class SegmentedStreamingFile {
                     public int read() throws IOException {
 
                         if(available() > 0) {
-                            return read += access.read();
+
+                            readFromAvailable++;
+
+                            return access.read();
                         }
                         else {
                             return -1;
@@ -647,17 +651,21 @@ public class SegmentedStreamingFile {
                     @Override
                     public int read(byte[] b, int off, int len) throws IOException {
 
-                        int available = available();
+                        final int available = available();
 
-                        if(available <= 0) {
+                        if (available <= 0) {
                             return -1;
                         }
 
-                        if(available < len) {
+                        if (available < len) {
                             len = available;
                         }
 
-                        return read += access.read(b, off, len);
+                        final int readThisTime = access.read(b, off, len);
+                        readFromAvailable += readThisTime;
+
+                        return readThisTime;
+
                     }
 
                     @Override
@@ -673,7 +681,6 @@ public class SegmentedStreamingFile {
                     }
                 };
 
-                return returnVal;
             }
             else {
                 throw new ReadFailure("segment at " + address + " is not bound it is " + segmentState);

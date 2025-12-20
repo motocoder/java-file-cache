@@ -312,4 +312,14 @@ public class SegmentedStreamingHashDataManager implements HashDataManager<byte [
         }
     }
 
+//    public static byte [] convertInputStreamToBytes(InputStream inputStream) throws IOException {
+//        byte[] buffer = new byte[8192]; // Use a suitable buffer size, e.g., 4096 or 8192
+//        int bytesRead;
+//        ByteArrayOutputStream output = new ByteArrayOutputStream();
+//        while ((bytesRead = inputStream.read(buffer)) != -1) {
+//            output.write(buffer, 0, bytesRead);
+//        }
+//        return output.toByteArray();
+//    }
+
 }

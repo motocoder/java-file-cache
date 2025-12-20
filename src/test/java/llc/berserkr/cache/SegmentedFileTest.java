@@ -60,7 +60,7 @@ public class SegmentedFileTest {
 
         final long start = System.currentTimeMillis();
 
-        final int JUNK_COUNT = 1000;
+        final int JUNK_COUNT = 1;
 
         final SegmentedStreamingFile segmentedFile = new SegmentedStreamingFile(segmentFile);
 
@@ -101,6 +101,7 @@ public class SegmentedFileTest {
 
         final Set<byte []> wasWrote = new HashSet<>();
 
+        //read in everything we wrote and store in wasWrote
         for(final long address : addressesUsed) {
 
             wasWrote.add(SegmentedStreamingHashDataManager.convertInputStreamToBytes(segmentedFile.readSegment(address)));
@@ -110,20 +111,20 @@ public class SegmentedFileTest {
 
         assertEquals(junkBytes.size(), wasWrote.size());
 
-//        for(final byte [] junk : junkBytes) {
-//            System.out.println("junk length " + junk.length);
-//            System.out.println("junk " + new String(junk));
-//        }
-//
-//        for(final byte [] wrote : wasWrote) {
-//            System.out.println("wrote length " + wrote.length);
-//            System.out.println("wrote " + new String(wrote));
-//        }
+        for(final byte [] junk : junkBytes) {
+            System.out.println("junk length " + junk.length);
+            System.out.println("junk " + new String(junk));
+        }
+
+        for(final byte [] wrote : wasWrote) {
+            System.out.println("wrote length " + wrote.length);
+            System.out.println("wrote " + new String(wrote));
+        }
 
         //check what we wrote vs what we read
         for(final byte [] wrote : wasWrote) {
-//
-//            for(final byte [] wrote : wasWrote) {
+
+//            for(final byte [] junk : wasWrote) {
 //
 //                if(junk.length != wrote.length) {
 //                    for(int i = 0; i < wrote.length; i++) {

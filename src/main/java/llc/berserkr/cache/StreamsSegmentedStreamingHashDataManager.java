@@ -224,7 +224,7 @@ public class StreamsSegmentedStreamingHashDataManager {
         );
 
     }
-    
+
     public void eraseBlobs(long blobIndex) throws WriteFailure, ReadFailure {
         startWritingTransaction(segmentedFile, blobIndex);
 
@@ -350,15 +350,6 @@ public class StreamsSegmentedStreamingHashDataManager {
                 writeTransaction
         );
 
-    }
-
-    public static byte[] convertInputStreamToBytes(InputStream inputStream) throws IOException {
-        try { // Automatic resource management (try-with-resources) closes the stream
-            return inputStream.readAllBytes();
-        }
-        finally {
-            inputStream.close();
-        }
     }
 
     private static int copyAndCount(InputStream inputStream, OutputStream outputStream) throws IOException {

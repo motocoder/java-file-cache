@@ -34,7 +34,7 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
 
         final byte[] segment;
         try {
-            segment = convertInputStreamToBytes(segmentedFile.readSegment(blobIndex));
+            segment = SegmentedStreamingHashDataManager.convertInputStreamToBytes(segmentedFile.readSegment(blobIndex));
         } catch (IOException e) {
             throw new ReadFailure("failed", e);
         }
@@ -301,15 +301,6 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
                 writeTransaction
         );
 
-    }
-
-    public static byte[] convertInputStreamToBytes(InputStream inputStream) throws IOException {
-        try { // Automatic resource management (try-with-resources) closes the stream
-            return inputStream.readAllBytes();
-        }
-        finally {
-            inputStream.close();
-        }
     }
 
 }

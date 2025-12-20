@@ -155,16 +155,14 @@ public class FileHashCacheTest {
 			
 	        final File tempFolder = new File("./target/test-files/temp-data");
 	        final File dataFolder = new File("./target/test-files/data");
-	        final File dataFolderItem = new File("./target/test-files/data/data");
 	        
 	        deleteRoot(tempFolder);
 	        deleteRoot(dataFolder);
-	        dataFolderItem.delete();
 	        
 	        tempFolder.mkdirs();
 	        dataFolder.mkdirs();
 
-            final Cache<byte [], InputStream> fileCache = new FileHashCache(dataFolderItem);
+            final Cache<byte [], InputStream> fileCache = new FileHashCache(dataFolder);
 
             final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                     new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
@@ -230,16 +228,14 @@ public class FileHashCacheTest {
 
         final File tempFolder = new File("./target/test-files/temp-data");
         final File dataFolder = new File("./target/test-files/data");
-        final File dataFolderItem = new File("./target/test-files/data/data");
         
         deleteRoot(tempFolder);
         deleteRoot(dataFolder);
-        dataFolderItem.delete();
         
         tempFolder.mkdirs();
         dataFolder.mkdirs();
         
-        final Cache<byte [], InputStream> fileCache = new FileHashCache(dataFolderItem);
+        final Cache<byte [], InputStream> fileCache = new FileHashCache(dataFolder);
 
         final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                 new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
@@ -373,14 +369,9 @@ public class FileHashCacheTest {
 				
 		        final File tempFolder = new File("./target/test-files/temp-data");
 		        final File dataFolder = new File("./target/test-files/data");
-		        final File dataFolderItem = new File("./target/test-files/data/data");
 		        
 		        deleteRoot(tempFolder);
 		        deleteRoot(dataFolder);
-		        dataFolderItem.delete();
-		        
-		        tempFolder.mkdirs();
-		        dataFolder.mkdirs();
 
                 final Cache<byte [], InputStream> fileCacheStream = new FileHashCache(dataFolder);
 
@@ -444,14 +435,9 @@ public class FileHashCacheTest {
 				
 		        final File tempFolder = new File("./target/test-files/temp-data");
 		        final File dataFolder = new File("./target/test-files/data");
-		        final File dataFolderItem = new File("./target/test-files/data/data");
 		        
 		        deleteRoot(tempFolder);
 		        deleteRoot(dataFolder);
-		        dataFolderItem.delete();
-		        
-		        tempFolder.mkdirs();
-		        dataFolder.mkdirs();
 
                 final Cache<byte [], InputStream> fileCacheStream = new FileHashCache(dataFolder);
 
@@ -480,7 +466,7 @@ public class FileHashCacheTest {
 		        System.out.println(returnValue);
 		        System.out.println(value);
 		        
-		        assertEquals(value, returnValue);
+		        assertEquals(value ,returnValue);
 		        assertEquals(cache.exists(key), true);
 		        
 		        cache.clear(); // test clear

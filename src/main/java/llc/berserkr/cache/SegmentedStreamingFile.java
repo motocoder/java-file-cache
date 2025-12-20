@@ -191,26 +191,18 @@ public class SegmentedStreamingFile {
      */
     public void write(long address, byte[] segment) throws ReadFailure, WriteFailure {
 
-        try(final RandomAccessFile random = new RandomAccessFile(root, "rws")) {
+        try {
 
-            try {
+            writeRandom.seek(address + SEGMENT_LENGTH_BYTES_COUNT); //seek to the state byte of the new segment that doesn't exist yet
+            writeRandom.write(new byte[]{TRANSITIONAL_STATE}); //note the caller needs to finalize the state
+            writeRandom.write(intToByteArray(segment.length));//write the fill size
+            writeRandom.write(segment); //write the payload
 
-                random.seek(address + SEGMENT_LENGTH_BYTES_COUNT); //seek to the state byte of the new segment that doesn't exist yet
-                random.write(new byte[]{TRANSITIONAL_STATE}); //note the caller needs to finalize the state
-                random.write(intToByteArray(segment.length));//write the fill size
-                random.write(segment); //write the payload
+            reference.setSegmentType(address, TRANSITIONAL_STATE);
 
-                reference.setSegmentType(address, TRANSITIONAL_STATE);
-
-            }
-            catch (IOException e) {
-                throw new WriteFailure("failed to write " + e.getMessage());
-            }
-
-        } catch (FileNotFoundException e) {
-            throw new ReadFailure("file not found: " + root, e);
-        } catch (IOException e) {
-            throw new ReadFailure("file not opened " + root, e);
+        }
+        catch (IOException e) {
+            throw new WriteFailure("failed to write " + e.getMessage());
         }
     }
 
@@ -226,47 +218,41 @@ public class SegmentedStreamingFile {
      */
     public void write(long address, InputStream segment) throws ReadFailure, WriteFailure {
 
-        try(final RandomAccessFile random = new RandomAccessFile(root, "rws")) {
 
-            try {
+        try {
 
-                random.seek(address + SEGMENT_LENGTH_BYTES_COUNT); //seek to the state byte of the new segment that doesn't exist yet
-                random.write(new byte[]{TRANSITIONAL_STATE}); //note the caller needs to finalize the state
-                random.seek(address + SEGMENT_LENGTH_BYTES_COUNT + 1 + SEGMENT_LENGTH_BYTES_COUNT);
+            writeRandom.seek(address + SEGMENT_LENGTH_BYTES_COUNT); //seek to the state byte of the new segment that doesn't exist yet
+            writeRandom.write(new byte[]{TRANSITIONAL_STATE}); //note the caller needs to finalize the state
+            writeRandom.seek(address + SEGMENT_LENGTH_BYTES_COUNT + 1 + SEGMENT_LENGTH_BYTES_COUNT);
 
-                final byte [] buffer = new byte[WRITE_BUFFER_SIZE];
-                int totalRead = 0;
+            final byte [] buffer = new byte[WRITE_BUFFER_SIZE];
+            int totalRead = 0;
 
-                while(true) {
+            while(true) {
 
-                    final int read = segment.read(buffer);
+                final int read = segment.read(buffer);
 
-                    if(read > 0) {
-                        totalRead += read;
-                        random.write(buffer, 0, read);
-                    }
-                    else {
-                        break;
-                    }
-
+                if(read > 0) {
+                    totalRead += read;
+                    writeRandom.write(buffer, 0, read);
+                }
+                else {
+                    break;
                 }
 
-                random.seek(address + SEGMENT_LENGTH_BYTES_COUNT + 1);
-
-                random.write(intToByteArray(totalRead));//write the fill size
-
-                reference.setSegmentType(address, TRANSITIONAL_STATE);
-
-            }
-            catch (IOException e) {
-                throw new WriteFailure("failed to write " + e.getMessage());
             }
 
-        } catch (FileNotFoundException e) {
-            throw new ReadFailure("file not found: " + root, e);
-        } catch (IOException e) {
-            throw new ReadFailure("file not opened " + root, e);
+            writeRandom.seek(address + SEGMENT_LENGTH_BYTES_COUNT + 1);
+
+            writeRandom.write(intToByteArray(totalRead));//write the fill size
+
+            reference.setSegmentType(address, TRANSITIONAL_STATE);
+
         }
+        catch (IOException e) {
+            throw new WriteFailure("failed to write " + e.getMessage());
+        }
+
     }
 
     /**

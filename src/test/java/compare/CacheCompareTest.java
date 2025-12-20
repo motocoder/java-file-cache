@@ -72,8 +72,6 @@ public class CacheCompareTest {
     @Test
     public void test() throws IOException, ResourceException, InterruptedException {
 
-//        Thread.sleep(5000);
-
         final FileHashCache hashCache = new FileHashCache(hashCacheDir, TEST_SIZE * 2);
 
         final Map<String, String> data = new HashMap<>();

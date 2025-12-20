@@ -1,9 +1,6 @@
 package llc.berserkr.cache;
 
-import llc.berserkr.cache.converter.BytesStringConverter;
-import llc.berserkr.cache.converter.InputStreamConverter;
-import llc.berserkr.cache.converter.ReverseConverter;
-import llc.berserkr.cache.converter.SerializingConverter;
+import llc.berserkr.cache.converter.*;
 import llc.berserkr.cache.exception.ResourceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,21 +59,16 @@ public class FilePersistedMaxCountCache<Value> implements Cache<String, Value> {
         if(!dataFolder.isDirectory()) {
             throw new IllegalArgumentException("Data folder must be a folder");
         }
-        
-        final FileHashCache diskCache = new FileHashCache(dataFolder);
 
-        final KeyConvertingCache<String, byte [], byte []> keyConvertingCache =
-                new KeyConvertingCache<String, byte[], byte[]>(diskCache, new ReverseConverter<>(new BytesStringConverter()));
+        final Cache<byte [], InputStream> diskCache = new FileHashCache(dataFolder);
 
+        final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
+                new KeyConvertingCache<String, byte[], InputStream>(diskCache, new ReverseConverter<>(new BytesStringConverter()));
 
-
-        final Cache<String, Serializable> cache = 
-            new ValueConvertingCache<String, Serializable, byte []>(
-                    keyConvertingCache,
-                    new SerializingConverter<Serializable>()
-                );
-            
-        this.persistCache = cache;
+        this.persistCache = new ValueConvertingCache<String, Serializable, InputStream>(
+                keyConvertingCache,
+                new SerializingStreamConverter<>()
+        );
         
         try {
             

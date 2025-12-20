@@ -65,15 +65,15 @@ public class FilePersistedMaxSizeCache<Value> implements Cache<String, Value> {
         if(!tempFolder.isDirectory()) {
             throw new IllegalArgumentException("Temp folder must be folder");
         }
-        
-        final FileHashCache diskCache = new FileHashCache(dataFolder);
 
-        final KeyConvertingCache<String, byte [], byte []> keyConvertingCache =
-                new KeyConvertingCache<>(diskCache, new ReverseConverter<>(new BytesStringConverter()));
+        final Cache<byte [], InputStream> diskCache = new FileHashCache(dataFolder);
 
-        this.persistCache = new ValueConvertingCache<>(
+        final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
+                new KeyConvertingCache<String, byte[], InputStream>(diskCache, new ReverseConverter<>(new BytesStringConverter()));
+
+        this.persistCache = new ValueConvertingCache<String, Serializable, InputStream>(
                 keyConvertingCache,
-                new SerializingConverter<>()
+                new SerializingStreamConverter<>()
         );
         this.sizeConverter = sizeConverter;
         

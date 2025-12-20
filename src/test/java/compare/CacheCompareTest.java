@@ -2,10 +2,12 @@ package compare;
 
 import com.jakewharton.disklrucache.DiskLruCache;
 import llc.berserkr.cache.FileHashCache;
+import llc.berserkr.cache.SegmentedStreamingHashDataManager;
 import llc.berserkr.cache.exception.ResourceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -83,7 +85,7 @@ public class CacheCompareTest {
         final long startTime = System.currentTimeMillis();
 
         for(final Map.Entry<String, String> entry : data.entrySet()) {
-            hashCache.put(entry.getKey().getBytes(StandardCharsets.UTF_8), entry.getValue().getBytes(StandardCharsets.UTF_8));
+            hashCache.put(entry.getKey().getBytes(StandardCharsets.UTF_8), new ByteArrayInputStream(entry.getValue().getBytes(StandardCharsets.UTF_8)));
         }
 
         System.out.println("data written " + (System.currentTimeMillis() - startTime));
@@ -94,7 +96,7 @@ public class CacheCompareTest {
             for (final Map.Entry<String, String> entry : data.entrySet()) {
 
                 final String keyString = entry.getKey();
-                final String value = new String(hashCache.get(keyString.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
+                final String value = new String(SegmentedStreamingHashDataManager.convertInputStreamToBytes(hashCache.get(keyString.getBytes(StandardCharsets.UTF_8))), StandardCharsets.UTF_8);
 
                 readData.put(keyString, value);
 

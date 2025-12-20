@@ -2,7 +2,6 @@ package llc.berserkr.cache;
 
 import llc.berserkr.cache.converter.Converter;
 import llc.berserkr.cache.converter.InputStreamConverter;
-import llc.berserkr.cache.converter.LongStringConverter;
 import llc.berserkr.cache.converter.ReverseConverter;
 import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.loader.DefaultResourceLoader;

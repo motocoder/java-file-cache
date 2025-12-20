@@ -1,6 +1,7 @@
 package llc.berserkr.cache;
 
 
+import llc.berserkr.cache.data.Pair;
 import llc.berserkr.cache.exception.ReadFailure;
 import llc.berserkr.cache.exception.WriteFailure;
 import org.slf4j.Logger;

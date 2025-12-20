@@ -1,6 +1,7 @@
-package llc.berserkr.cache.converter;
+package llc.berserkr.cache;
 
 
+import llc.berserkr.cache.converter.Converter;
 import llc.berserkr.cache.exception.ResourceException;
 
 public class LongStringConverter implements Converter<Long, String> {

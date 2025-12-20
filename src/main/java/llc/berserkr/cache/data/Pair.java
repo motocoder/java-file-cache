@@ -1,4 +1,4 @@
-package llc.berserkr.cache;
+package llc.berserkr.cache.data;
 
 import java.util.Objects;
 

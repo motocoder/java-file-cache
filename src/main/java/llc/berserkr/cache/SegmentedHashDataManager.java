@@ -1,5 +1,6 @@
 package llc.berserkr.cache;
 
+import llc.berserkr.cache.data.Pair;
 import llc.berserkr.cache.exception.OutOfSpaceException;
 import llc.berserkr.cache.exception.ReadFailure;
 import llc.berserkr.cache.exception.SpaceFragementedException;

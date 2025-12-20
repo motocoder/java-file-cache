@@ -1,4 +1,5 @@
 package llc.berserkr.cache;
+import llc.berserkr.cache.data.Pair;
 import llc.berserkr.cache.exception.ReadFailure;
 import llc.berserkr.cache.exception.WriteFailure;
 import org.apache.log4j.BasicConfigurator;
@@ -8,13 +9,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.Map.Entry;
 
 import static org.junit.jupiter.api.Assertions.*;
 

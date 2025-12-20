@@ -1,14 +1,12 @@
 package llc.berserkr.cache;
 
-import llc.berserkr.cache.converter.InputStreamConverter;
-import llc.berserkr.cache.converter.ReverseConverter;
+import llc.berserkr.cache.data.Pair;
 import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.util.DataUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.*;
 
 /**

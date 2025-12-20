@@ -1,5 +1,6 @@
 package llc.berserkr.cache;
 
+import llc.berserkr.cache.data.Pair;
 import llc.berserkr.cache.exception.ReadFailure;
 import llc.berserkr.cache.exception.WriteFailure;
 import org.slf4j.Logger;
@@ -16,7 +17,7 @@ public class MemoryHashDataManager<Key, Value> implements HashDataManager<Key, V
 
     private long blobIndexGenerate = 0;
 
-    private final Map<Long, Set<Pair<Key, Value> >> data = new HashMap<>();
+    private final Map<Long, Set<Pair<Key, Value>>> data = new HashMap<>();
 
     @Override
     public Set<Pair<Key, Value>> getBlobsAt(long blobIndex) throws ReadFailure {

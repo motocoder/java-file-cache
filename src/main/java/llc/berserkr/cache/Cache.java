@@ -1,6 +1,5 @@
 package llc.berserkr.cache;
 
-import llc.berserkr.cache.exception.CacheException;
 import llc.berserkr.cache.exception.ResourceException;
 
 import java.util.List;

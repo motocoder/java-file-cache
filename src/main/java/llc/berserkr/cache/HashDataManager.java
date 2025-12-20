@@ -1,9 +1,9 @@
 package llc.berserkr.cache;
 
+import llc.berserkr.cache.data.Pair;
 import llc.berserkr.cache.exception.ReadFailure;
 import llc.berserkr.cache.exception.WriteFailure;
 
-import java.util.Map.Entry;
 import java.util.Set;
 
 public interface HashDataManager<Key, Value> {

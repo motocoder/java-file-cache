@@ -1,7 +1,6 @@
 package llc.berserkr.cache;
 
 import llc.berserkr.cache.converter.Converter;
-import llc.berserkr.cache.exception.CacheException;
 import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.loader.ResourceLoader;
 import org.slf4j.Logger;

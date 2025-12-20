@@ -312,7 +312,9 @@ public class StreamingFileHash {
             //read in key at this hash location.
             final int read = randomRead.read(currentKeyIn);
 
-            if (read <= 0) { //file should have been initialized to hash size
+            if (read <= 0) {
+                giveLock(hashedIndex, lock);
+                //file should have been initialized to hash size
                 throw new RuntimeException("hash was not initialized properly");
             }
 
@@ -326,7 +328,9 @@ public class StreamingFileHash {
                 //if there is values on this hash
                 final Set<Pair<byte[], Long>> blobs = blobManager.getBlobsAt(blobIndex);
 
-                if (blobs == null) { //data corrupt lets remove our reference.
+                if (blobs == null) {
+                    giveLock(hashedIndex, lock);
+                    //data corrupt lets remove our reference.
                     throw new ReadFailure("there should have been blobs at blobIndex");
                 } else {
 
@@ -347,6 +351,7 @@ public class StreamingFileHash {
             }
 
             if (returnVal == null) {
+                giveLock(hashedIndex, lock);
                 return null;
             }
 

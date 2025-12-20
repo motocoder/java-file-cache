@@ -88,7 +88,10 @@ public class FileHashCacheTest {
 	        Thread.sleep(500);
 	        
 	        assertEquals(true, cache.exists(key3));
-	        assertNotNull(cache.get(key2));
+
+            final InputStream read = cache.get(key2);
+	        assertNotNull(read);
+            read.close();
 	        assertEquals(true, cache.exists(key2));
 
 	        cache.clear();

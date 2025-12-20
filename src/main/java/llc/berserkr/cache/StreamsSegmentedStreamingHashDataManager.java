@@ -348,7 +348,7 @@ public class StreamsSegmentedStreamingHashDataManager {
 
     }
 
-    private static int copyAndCount(InputStream inputStream, OutputStream outputStream) throws IOException {
+    public static int copyAndCount(InputStream inputStream, OutputStream outputStream) throws IOException {
 
         byte[] buffer = new byte[8192]; // Use a sensible buffer size (e.g., 1KB, 4KB, 8KB)
         int bytesRead;

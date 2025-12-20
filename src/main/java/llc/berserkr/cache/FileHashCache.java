@@ -53,8 +53,22 @@ public class FileHashCache implements Cache<byte [], InputStream> {
     public boolean exists(byte [] key) throws ResourceException {
     	
         try {
-            return hash.get(key) != null;
-        } catch (ReadFailure e) {
+
+            final InputStream is = hash.get(key);
+
+            if(is != null) {
+                try {
+                    is.close();
+                } catch (IOException e) {
+                    throw new ResourceException(e);
+                }
+
+                return true;
+            }
+
+            return false;
+
+        } catch (ReadFailure | WriteFailure e) {
             throw new ResourceException("failure", e);
         }
 
@@ -65,7 +79,7 @@ public class FileHashCache implements Cache<byte [], InputStream> {
         
         try {
             return hash.get(key);
-        } catch (ReadFailure e) {
+        } catch (ReadFailure | WriteFailure e) {
             throw new ResourceException("failure", e);
         }
 

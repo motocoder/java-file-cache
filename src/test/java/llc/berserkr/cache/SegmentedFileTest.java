@@ -8,6 +8,7 @@ import llc.berserkr.cache.exception.WriteFailure;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -61,7 +62,7 @@ public class SegmentedFileTest {
 
         final int JUNK_COUNT = 1000;
 
-        final SegmentedFile segmentedFile = new SegmentedFile(segmentFile);
+        final SegmentedStreamingFile segmentedFile = new SegmentedStreamingFile(segmentFile);
 
         final Set<byte []> junkBytes = new HashSet<byte[]>();
         final Set<String> junkStrings = new HashSet<>();
@@ -88,7 +89,7 @@ public class SegmentedFileTest {
         //write the junk data into segments at the end
         for(final byte [] junk : junkBytes) {
 
-            final long address = segmentedFile.writeToEnd(junk);
+            final long address = segmentedFile.writeToEnd(new ByteArrayInputStream(junk));
 
             segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
 
@@ -102,7 +103,7 @@ public class SegmentedFileTest {
 
         for(final long address : addressesUsed) {
 
-            wasWrote.add(segmentedFile.readSegment(address));
+            wasWrote.add(SegmentedStreamingHashDataManager.convertInputStreamToBytes(segmentedFile.readSegment(address)));
         }
 
         System.out.println("data read : " + wasWrote.size() + " " + (System.currentTimeMillis() - start));
@@ -150,7 +151,7 @@ public class SegmentedFileTest {
 
             final Long addressToRemove = addressesUsed.remove((int) (Math.random() * addressesUsed.size()));
 
-            halfAddresses.put(addressToRemove, segmentedFile.readSegment(addressToRemove));
+            halfAddresses.put(addressToRemove, SegmentedStreamingHashDataManager.convertInputStreamToBytes(segmentedFile.readSegment(addressToRemove)));
 
         }
 
@@ -200,7 +201,7 @@ public class SegmentedFileTest {
             } catch (OutOfSpaceException e) {
 
                 //nothing for it to fit in, just allocate new space on the end.
-                final long newAddress = segmentedFile.writeToEnd(write);
+                final long newAddress = segmentedFile.writeToEnd(new ByteArrayInputStream(write));
 
                 wroteToEnd.add(newAddress);
             }

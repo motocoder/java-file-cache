@@ -1,9 +1,6 @@
 package llc.berserkr.cache;
 
-import llc.berserkr.cache.exception.OutOfSpaceException;
-import llc.berserkr.cache.exception.ReadFailure;
-import llc.berserkr.cache.exception.SpaceFragementedException;
-import llc.berserkr.cache.exception.WriteFailure;
+import llc.berserkr.cache.exception.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +32,7 @@ public class SegmentedStreamingFile {
     private final RandomAccessFile writeRandom;
     private final RandomAccessFile readRandom;
     private long lastKnownAddress = START_OFFSET;
+    private static final int WRITE_BUFFER_SIZE = 8192;
 
     /**
      *
@@ -236,7 +234,7 @@ public class SegmentedStreamingFile {
                 random.write(new byte[]{TRANSITIONAL_STATE}); //note the caller needs to finalize the state
                 random.seek(address + SEGMENT_LENGTH_BYTES_COUNT + 1 + SEGMENT_LENGTH_BYTES_COUNT);
 
-                final byte [] buffer = new byte[1024];
+                final byte [] buffer = new byte[WRITE_BUFFER_SIZE];
                 int totalRead = 0;
 
                 while(true) {
@@ -351,7 +349,7 @@ public class SegmentedStreamingFile {
      * @throws WriteFailure
      * @throws ReadFailure
      */
-    public long writeToEnd(final byte [] segment) throws WriteFailure, ReadFailure {
+    public long writeToEnd(final InputStream segment) throws WriteFailure, ReadFailure {
 
         long address = lastKnownAddress; //shortcut to the last address if we already know it
 
@@ -387,14 +385,32 @@ public class SegmentedStreamingFile {
                         writeRandom.seek(address + SEGMENT_LENGTH_BYTES_COUNT); //seek to the state byte of the new segment that doesn't exist yet
                         writeRandom.write(new byte[]{TRANSITIONAL_STATE}); //write the state first
                         writeRandom.seek(address + SEGMENT_LENGTH_BYTES_COUNT + 1 + /*fill length*/SEGMENT_LENGTH_BYTES_COUNT);
-                        writeRandom.write(segment);
+
+                        final byte [] buffer = new byte[WRITE_BUFFER_SIZE];
+                        int totalRead = 0;
+
+                        while(true) {
+
+                            final int read = segment.read(buffer);
+
+                            if(read > 0) {
+                                totalRead += read;
+                                writeRandom.write(buffer, 0, read);
+                            }
+                            else {
+                                break;
+                            }
+
+                        }
+
+//                        writeRandom.write(segment);
                         writeRandom.seek(address);
-                        writeRandom.write(intToByteArray(segment.length));
+                        writeRandom.write(intToByteArray(totalRead));
                         writeRandom.seek(address + SEGMENT_LENGTH_BYTES_COUNT + 1);
-                        writeRandom.write(intToByteArray(segment.length)); //data fill is same size as the segment since its a new segment
+                        writeRandom.write(intToByteArray(totalRead)); //data fill is same size as the segment since its a new segment
 
                         reference.setSegmentType(address, TRANSITIONAL_STATE);
-                        reference.setSegmentSize(address, segment.length);
+                        reference.setSegmentSize(address, totalRead);
 
                         this.lastKnownAddress = address;
                         return address; //return it in transitional state
@@ -421,9 +437,10 @@ public class SegmentedStreamingFile {
      * @return
      * @throws ReadFailure
      * @throws OutOfSpaceException - thrown if we reach the last item and still can't find anything
+     * @throws NeedsSplitException - thrown if we reach the last item and still can't find anything
      * @throws SpaceFragementedException - thrown if we reach a framented group of segments that can be used by merging them
      */
-    public long getFreeSegment(final int lengthRequired) throws ReadFailure, OutOfSpaceException, SpaceFragementedException {
+    public long getFreeSegment(final int lengthRequired) throws ReadFailure, OutOfSpaceException, NeedsSplitException, SpaceFragementedException {
 
         //check cache for one we already know of
         final Long foundEarly = reference.getSuitableSegment(lengthRequired);
@@ -494,7 +511,10 @@ public class SegmentedStreamingFile {
                 //free segment lets see if it fits
                 if(segmentState == FREE_STATE) {
 
-                    if(segmentLength >= lengthRequired) {
+                    if(segmentLength > lengthRequired * 2) {
+                        throw new NeedsSplitException(address, segmentLength);
+                    }
+                    else if(segmentLength >= lengthRequired) {
                         //if this segment is big enough and free return the address
                         return address;
                     }
@@ -575,6 +595,7 @@ public class SegmentedStreamingFile {
 
     }
 
+    private final List<RandomAccessFile> readers = new LinkedList<>();
     /**
      * Reads the data in bytes from the segment
      *
@@ -582,9 +603,20 @@ public class SegmentedStreamingFile {
      * @return
      * @throws ReadFailure
      */
-    public byte[] readSegment(long address) throws ReadFailure {
+    public InputStream readSegment(long address) throws ReadFailure {
 
         try {
+
+            final RandomAccessFile readRandom;
+
+            synchronized (readers) {
+                if(readers.size() == 0) {
+                    readRandom = new RandomAccessFile(root, "r");
+                }
+                else {
+                    readRandom = readers.getFirst();
+                }
+            }
 
             readRandom.seek(address);
 
@@ -604,9 +636,56 @@ public class SegmentedStreamingFile {
             //check to make sure the segment is bound otherwise there's nothing to read
             if(segmentState == BOUND_STATE) {
 
-                final byte [] returnVal =  new byte[segmentFillLength];
+                final InputStream returnVal = new InputStream() {
 
-                readRandom.readFully(returnVal, 0, segmentFillLength);
+                    int read = 0;
+
+                    @Override
+                    public int available() {
+                        return segmentFillLength - read;
+                    }
+
+                    RandomAccessFile access = readRandom;
+
+                    @Override
+                    public int read() throws IOException {
+
+                        if(available() > 0) {
+                            return read += access.read();
+                        }
+                        else {
+                            return -1;
+                        }
+                    }
+
+                    @Override
+                    public int read(byte[] b, int off, int len) throws IOException {
+
+                        int available = available();
+
+                        if(available <= 0) {
+                            return -1;
+                        }
+
+                        if(available < len) {
+                            len = available;
+                        }
+
+                        return read += access.read(b, off, len);
+                    }
+
+                    @Override
+                    public void close() throws IOException {
+                        super.close();
+
+                        this.access = null;
+
+                        synchronized (readers) {
+                            readers.add(readRandom);
+                        }
+
+                    }
+                };
 
                 return returnVal;
             }
@@ -632,7 +711,7 @@ public class SegmentedStreamingFile {
 
         if(toWrite.length < START_OFFSET) {
 
-            final byte[] temp = new byte[1024];
+            final byte[] temp = new byte[START_OFFSET];
 
             Arrays.fill(temp, (byte) 0); //fill it with zeros
 
@@ -706,7 +785,6 @@ public class SegmentedStreamingFile {
             final byte segmentState = toRead[4];
 
             final int segmentLength = bytesToInt(new byte[] {toRead[0], toRead[1], toRead[2], toRead[3]});//segmentSize);
-            final int segmentFillLength = bytesToInt(new byte[] {toRead[5], toRead[6], toRead[7], toRead[8]});//bytesToInt(segmentFillSize);
 
             reference.setSegmentType(address, segmentState);
             reference.setSegmentSize(address, segmentLength);

@@ -129,7 +129,7 @@ public abstract class FileHash<Key, Value> {
                    throw new RuntimeException("hash was not initialized properly");
                }
                
-               final long blobIndex = SegmentedFile.bytesToLong(currentKeyIn);
+               final long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
                
                final Set<Pair<Key, Value>> toWrite = new HashSet<>();
                

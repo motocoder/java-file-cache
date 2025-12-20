@@ -5,11 +5,11 @@ import llc.berserkr.cache.exception.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.*;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * This class manages putting hashed items into the segmented file.
@@ -19,20 +19,25 @@ import java.util.*;
  * TODO modify reading/writing to allow multiple reads async to writes
  * TODO modify the value to be streamable instead of bytes to handle large values (potentially infinite instead of limited by heap size)
  */
-public class SegmentedHashDataManager implements HashDataManager<byte [], byte []> {
+public class SegmentedStreamingHashDataManager implements HashDataManager<byte [], byte []> {
 
-    private static final Logger logger = LoggerFactory.getLogger(SegmentedHashDataManager.class);
+    private static final Logger logger = LoggerFactory.getLogger(SegmentedStreamingHashDataManager.class);
 
-    private final SegmentedFile segmentedFile;
+    private final SegmentedStreamingFile segmentedFile;
 
-    public SegmentedHashDataManager(File segmentFile) {
-        this.segmentedFile = new SegmentedFile(segmentFile);
+    public SegmentedStreamingHashDataManager(File segmentFile) {
+        this.segmentedFile = new SegmentedStreamingFile(segmentFile);
     }
 
     @Override
     public Set<Pair<byte[], byte[]>> getBlobsAt(long blobIndex) throws ReadFailure {
 
-        final byte[] segment = segmentedFile.readSegment(blobIndex);
+        final byte[] segment;
+        try {
+            segment = convertInputStreamToBytes(segmentedFile.readSegment(blobIndex));
+        } catch (IOException e) {
+            throw new ReadFailure("failed", e);
+        }
 
         return getSegmentPairs(segment);
     }
@@ -108,19 +113,23 @@ public class SegmentedHashDataManager implements HashDataManager<byte [], byte [
 
             startAddTransaction(segmentedFile, pairData.length);
 
-            //no free segments, add to the end of the segment file
-            final long address = segmentedFile.writeToEnd(pairData);
+            try(final InputStream is = new ByteArrayInputStream(pairData)) {
+                //no free segments, add to the end of the segment file
+                final long address = segmentedFile.writeToEnd(is);
 
-            segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
+                segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
 
-            endTransactions(segmentedFile);
+                endTransactions(segmentedFile);
 
-            return address;
+                return address;
+            } catch (IOException ex) {
+                throw new WriteFailure("failed to write ", ex);
+            }
         }
 
     }
 
-    public static void startAddTransaction(SegmentedFile segmentedFile, int length) throws ReadFailure, WriteFailure {
+    public static void startAddTransaction(SegmentedStreamingFile segmentedFile, int length) throws ReadFailure, WriteFailure {
 
         final byte[] lengthBytes = SegmentedFile.intToByteArray(length);
 
@@ -138,7 +147,7 @@ public class SegmentedHashDataManager implements HashDataManager<byte [], byte [
 
     }
 
-    public static void startMergeTransaction(SegmentedFile segmentedFile, long address, int segmentSize) throws ReadFailure, WriteFailure {
+    public static void startMergeTransaction(SegmentedStreamingFile segmentedFile, long address, int segmentSize) throws ReadFailure, WriteFailure {
 
         final byte[] addressBytes = SegmentedFile.longToByteArray(address);
         final byte[] lengthBytes = SegmentedFile.intToByteArray(segmentSize);
@@ -269,11 +278,11 @@ public class SegmentedHashDataManager implements HashDataManager<byte [], byte [
 
     }
 
-    public static void endTransactions(SegmentedFile segmentedFile) throws ReadFailure, WriteFailure {
+    public static void endTransactions(SegmentedStreamingFile segmentedFile) throws ReadFailure, WriteFailure {
         segmentedFile.writeTransactionalBytes(new byte[] {});
     }
 
-    public static void startWritingTransaction(SegmentedFile segmentedFile, long address) throws ReadFailure, WriteFailure {
+    public static void startWritingTransaction(SegmentedStreamingFile segmentedFile, long address) throws ReadFailure, WriteFailure {
 
         final byte[] addressBytes = SegmentedFile.longToByteArray(address);
         final byte [] writeTransaction = new byte[] {
@@ -298,20 +307,6 @@ public class SegmentedHashDataManager implements HashDataManager<byte [], byte [
         try (inputStream) { // Automatic resource management (try-with-resources) closes the stream
             return inputStream.readAllBytes();
         }
-    }
-
-    public static byte[] convertInputStreamToBytes2(InputStream inputStream) throws IOException {
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        int bytesRead;
-        // Use a reasonably large buffer size, e.g., 4 KiB (4096) or 8 KiB (8192)
-        byte[] data = new byte[8192];
-
-        while ((bytesRead = inputStream.read(data, 0, data.length)) != -1) {
-            buffer.write(data, 0, bytesRead);
-        }
-
-        buffer.flush();
-        return buffer.toByteArray();
     }
 
 }

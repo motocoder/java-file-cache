@@ -1,9 +1,6 @@
 package llc.berserkr.cache;
 
-import llc.berserkr.cache.exception.OutOfSpaceException;
-import llc.berserkr.cache.exception.ReadFailure;
-import llc.berserkr.cache.exception.SpaceFragementedException;
-import llc.berserkr.cache.exception.WriteFailure;
+import llc.berserkr.cache.exception.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.*;
@@ -16,7 +13,7 @@ public class SegmentedFile {
     private static final Logger logger = LoggerFactory.getLogger(SegmentedFile.class);
 
     //bytes at the beginning of each segment to construct into an int for the segment length
-    private static final int SEGMENT_LENGTH_BYTES_COUNT = 4;
+    public static final int SEGMENT_LENGTH_BYTES_COUNT = 4;
     private static final int START_OFFSET = 1024; //leave 1024 bytes for use of transactions
 
     //byte range -128 to 127
@@ -437,7 +434,10 @@ public class SegmentedFile {
                 //free segment lets see if it fits
                 if(segmentState == FREE_STATE) {
 
-                    if(segmentLength >= lengthRequired) {
+                    if(segmentLength > lengthRequired * 2) {
+                        throw new NeedsSplitException(address, segmentLength);
+                    }
+                    else if(segmentLength >= lengthRequired) {
                         //if this segment is big enough and free return the address
                         return address;
                     }

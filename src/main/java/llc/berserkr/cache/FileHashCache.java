@@ -42,7 +42,7 @@ public class FileHashCache implements Cache<byte [], byte []> {
             managerDataFile.createNewFile();
         }
 
-        final SegmentedHashDataManager manager = new SegmentedHashDataManager(managerDataFile);
+        final SegmentedStreamingHashDataManager manager = new SegmentedStreamingHashDataManager(managerDataFile);
         hash = new FileHash<>(hashFile, manager, hashSize) {
             @Override
             public int hashCode(byte[] bytes) {
@@ -71,11 +71,7 @@ public class FileHashCache implements Cache<byte [], byte []> {
     public byte [] get(byte [] key) throws ResourceException {
         
         try {
-            
-            final byte [] returnVal = hash.get(key);
-            
-            return returnVal;
-            
+            return hash.get(key);
         } catch (ReadFailure e) {
             throw new ResourceException("failure", e);
         }

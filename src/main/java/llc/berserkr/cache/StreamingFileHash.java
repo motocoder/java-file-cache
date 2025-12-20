@@ -8,9 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -18,7 +17,6 @@ import java.util.Set;
  * 
  * this is a file backed hashing mechanism. 
  *
- * TODO need to review catastrophic failure error checking, i think it works though (reverses writes to delete items)
  * TODO make read/write seperated for threading reasons (should be able to read from stuff you aren't writting to while writting to other items)
  *
  * Some of this class was derived from: https://code.google.com/p/jdbm2/ 
@@ -33,11 +31,12 @@ public class StreamingFileHash {
     private final int hashSize;
     private final File file;
 
-    private final BlobsSegmentedStreamingHashDataManager blobManager;
-    private final RandomAccessFile randomRead;
-    private final RandomAccessFile randomWrite;
-    private final StreamsSegmentedStreamingHashDataManager dataManager;
+    private final Map<Long, Object> hashLocks = new ConcurrentHashMap<>();
 
+    private final BlobsSegmentedStreamingHashDataManager blobManager;
+//    private final RandomAccessFile randomRead;
+//    private final RandomAccessFile randomWrite;
+    private final StreamsSegmentedStreamingHashDataManager dataManager;
 
     public StreamingFileHash(
         final File file,
@@ -62,14 +61,51 @@ public class StreamingFileHash {
             initFile();
         }
 
-        try {
-            this.randomWrite = new RandomAccessFile(file, "rws");
-            this.randomRead = new RandomAccessFile(file, "r");
-        }
-        catch(IOException e) {
-            throw new RuntimeException("hash file isn't working", e);
+    }
+
+    private final List<RandomAccessFile> readers = new LinkedList<>();
+    private final List<RandomAccessFile> writers = new LinkedList<>();
+
+    private void giveReader(RandomAccessFile reader) {
+        synchronized (readers) {
+            readers.add(reader);
         }
     }
+    private RandomAccessFile getReader() {
+        synchronized (readers) {
+            if(readers.size() == 0) {
+                try {
+                    return new RandomAccessFile(file, "r");
+                } catch (FileNotFoundException e) {
+                    throw new RuntimeException("hash file isn't working", e);
+                }
+            }
+            else {
+                return readers.removeFirst();
+            }
+        }
+    }
+
+    private void giveWriter(RandomAccessFile reader) {
+        synchronized (writers) {
+            writers.add(reader);
+        }
+    }
+    private RandomAccessFile getWriter() {
+        synchronized (writers) {
+            if(writers.size() == 0) {
+                try {
+                    return new RandomAccessFile(file, "rws");
+                } catch (FileNotFoundException e) {
+                    throw new RuntimeException("hash file isn't working", e);
+                }
+            }
+            else {
+                return writers.removeFirst();
+            }
+        }
+    }
+
 
     private void initFile() {
 
@@ -111,7 +147,22 @@ public class StreamingFileHash {
         }
 
     }
-    
+
+    private Object getLock(long key) {
+
+        synchronized (hashLocks) {
+            Object lock = hashLocks.get(key);
+
+            if (lock == null) {
+
+                lock = new Object();
+                hashLocks.put(key, lock);
+            }
+
+            return lock;
+        }
+
+    }
     /**
      * 
      * @param key
@@ -128,71 +179,83 @@ public class StreamingFileHash {
              
         try {
 
-              
-           final byte [] currentKeyIn = new byte[BUCKET_SIZE];
-           randomRead.seek(hashedIndex);
+           final Object lock = getLock(hashedIndex);
 
-           //read in key at this hash location.
-           final int read = randomRead.read(currentKeyIn); //read in the current value
+           final RandomAccessFile randomRead = getReader();
+           final RandomAccessFile randomWrite = getWriter();
 
-           if(read <= 0) { //file was too short, empty values weren't filled in
-               throw new RuntimeException("hash was not initialized properly");
-           }
+           synchronized (lock) {
+           try {
 
-           final long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
+               final byte[] currentKeyIn = new byte[BUCKET_SIZE];
+               randomRead.seek(hashedIndex);
 
-           final Set<Pair<byte [], Long>> toWrite = new HashSet<>();
+               //read in key at this hash location.
+               final int read = randomRead.read(currentKeyIn); //read in the current value
 
-           if(blobIndex >= 0) {
-
-               //if there is already something hashed here, retrieve the hash bucket and add to it
-               final Set<Pair<byte [], Long>> blobs = blobManager.getBlobsAt(blobIndex);
-
-               if(blobs != null) {
-                   toWrite.addAll(blobs);
+               if (read <= 0) { //file was too short, empty values weren't filled in
+                   throw new RuntimeException("hash was not initialized properly");
                }
 
-           }
+               final long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
 
-           //if this key was already in the bucket remove it.
-           Pair<byte [], Long> remove = null;
+               final Set<Pair<byte[], Long>> toWrite = new HashSet<>();
 
-           for(final Pair<byte [], Long> entry : toWrite) {
+               if (blobIndex >= 0) {
 
-               if(equals(entry.getOne(), key)) {
-                   remove = entry;
-                   break;
+                   //if there is already something hashed here, retrieve the hash bucket and add to it
+                   final Set<Pair<byte[], Long>> blobs = blobManager.getBlobsAt(blobIndex);
+
+                   if (blobs != null) {
+                       toWrite.addAll(blobs);
+                   }
+
                }
 
+               //if this key was already in the bucket remove it.
+               Pair<byte[], Long> remove = null;
+
+               for (final Pair<byte[], Long> entry : toWrite) {
+
+                   if (equals(entry.getOne(), key)) {
+                       remove = entry;
+                       break;
+                   }
+
+               }
+
+               toWrite.remove(remove);
+
+               final long oldAddress;
+
+               if (remove != null) {
+                   oldAddress = remove.getTwo();
+               } else {
+                   oldAddress = -1;
+               }
+               final long newAddress = dataManager.setBlobs(oldAddress, blob);
+
+               //then add it to the bucket again
+               toWrite.add(
+                   new Pair<byte[], Long>(key, newAddress)
+               );
+
+               //save the new values, if a new index is allocated, store it in the hash
+               final long blobIndexAfterSet = blobManager.setBlobs(blobIndex, toWrite);
+
+               if (blobIndexAfterSet != blobIndex) {
+
+                   final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(blobIndexAfterSet);
+
+                   randomWrite.seek(hashedIndex);
+                   randomWrite.write(bytesIndex);
+
+               }
            }
-
-           toWrite.remove(remove);
-
-           final long oldAddress;
-
-           if(remove != null) {
-               oldAddress = remove.getTwo();
+           finally {
+               giveReader(randomRead);
+               giveWriter(randomWrite);
            }
-           else {
-               oldAddress = -1;
-           }
-           final long newAddress = dataManager.setBlobs(-oldAddress, blob);
-
-           //then add it to the bucket again
-           toWrite.add(
-               new Pair<byte [], Long>(key, newAddress)
-           );
-
-           //save the new values, if a new index is allocated, store it in the hash
-           final long blobIndexAfterSet = blobManager.setBlobs(blobIndex, toWrite);
-
-           if(blobIndexAfterSet != blobIndex) {
-
-               final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(blobIndexAfterSet);
-
-               randomWrite.seek(hashedIndex);
-               randomWrite.write(bytesIndex);
-
            }
             
         }
@@ -217,41 +280,47 @@ public class StreamingFileHash {
         final int limitedHash = Math.abs(hashCode(key)) % hashSize; //limit the hash to our hash size
     
         int hashedIndex = limitedHash * (BUCKET_SIZE); //determine byte index
-                
-        try {
 
-            final byte [] currentKeyIn = new byte[BUCKET_SIZE];
-            randomRead.seek(hashedIndex);
+        final Object lock = getLock(hashedIndex);
 
-            //read in key at this hash location.
-            final int read = randomRead.read(currentKeyIn);
+        final RandomAccessFile randomRead = getReader();
 
-            if(read <= 0) { //file should have been initialized to hash size
-                throw new RuntimeException("hash was not initialized properly");
-            }
+        synchronized (lock) {
+            try {
 
-            //convert the values read into an index
-            long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
+                final byte[] currentKeyIn = new byte[BUCKET_SIZE];
+                randomRead.seek(hashedIndex);
 
-            Long returnVal = null;
+                //read in key at this hash location.
+                final int read = randomRead.read(currentKeyIn);
 
-            if(blobIndex >= 0) {
-
-                //if there is values on this hash
-                final Set<Pair<byte [], Long>> blobs = blobManager.getBlobsAt(blobIndex);
-
-                if(blobs == null) { //data corrupt lets remove our reference.
-                    throw new ReadFailure("there should have been blobs at blobIndex");
+                if (read <= 0) { //file should have been initialized to hash size
+                    throw new RuntimeException("hash was not initialized properly");
                 }
-                else {
 
-                    for(Pair<byte [], Long> blob : blobs) {
+                //convert the values read into an index
+                long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
 
-                        if(equals(blob.getOne(), key)) {
+                Long returnVal = null;
 
-                            //return the value mapped to this key
-                            returnVal = blob.getTwo();
-                            break;
+                if (blobIndex >= 0) {
+
+                    //if there is values on this hash
+                    final Set<Pair<byte[], Long>> blobs = blobManager.getBlobsAt(blobIndex);
+
+                    if (blobs == null) { //data corrupt lets remove our reference.
+                        throw new ReadFailure("there should have been blobs at blobIndex");
+                    } else {
+
+                        for (Pair<byte[], Long> blob : blobs) {
+
+                            if (equals(blob.getOne(), key)) {
+
+                                //return the value mapped to this key
+                                returnVal = blob.getTwo();
+                                break;
+
+                            }
 
                         }
 
@@ -259,26 +328,24 @@ public class StreamingFileHash {
 
                 }
 
+                if (returnVal == null) {
+                    return null;
+                }
+
+                //else the returnval will be null
+                return dataManager.getBlobsAt(returnVal); //TODO this will unlock the lock before the read completes
+
+            } catch (FileNotFoundException e) {
+                throw new ReadFailure("read value != written value");
+            } catch (IOException e) {
+
+                logger.error("io exception in fileHash putHash", e);
+                throw new RuntimeException("failed hash blob", e);
+
             }
-
-            if(returnVal == null) {
-                return null;
+            finally {
+                giveReader(randomRead);
             }
-
-            //else the returnval will be null
-
-            return dataManager.getBlobsAt(returnVal);
-
-          
-        }
-        catch (FileNotFoundException e) {
-            throw new ReadFailure("read value != written value");
-        } 
-        catch (IOException e) {
-        
-            logger.error("io exception in fileHash putHash", e);
-            throw new RuntimeException("failed hash blob", e);
-        
         }
         
     }
@@ -288,142 +355,158 @@ public class StreamingFileHash {
         final long limitedHash = Math.abs(hashCode(key)) % hashSize; //limit the hash size
         
         long hashedIndex = limitedHash * (BUCKET_SIZE);
-        
-        try {
 
-           final byte [] currentKeyIn = new byte[BUCKET_SIZE];
-           randomRead.seek(hashedIndex);
+        final Object lock = getLock(hashedIndex);
 
-           //read in key at this hash location.
-           final int read = randomRead.read(currentKeyIn);
+        final RandomAccessFile randomRead = getReader();
+        final RandomAccessFile randomWrite = getWriter();
 
-           if(read <= 0) {
-               throw new RuntimeException("hash was not initialized properly");
-           }
+        synchronized (lock) {
+            try {
 
-           //convert to an index
-           long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
+                final byte[] currentKeyIn = new byte[BUCKET_SIZE];
+                randomRead.seek(hashedIndex);
 
-           //if there is a value on this hash, retrieve its value
-           if(blobIndex >= 0) {
+                //read in key at this hash location.
+                final int read = randomRead.read(currentKeyIn);
 
-               Pair<byte [], Long> removing = null;
+                if (read <= 0) {
+                    throw new RuntimeException("hash was not initialized properly");
+                }
 
-               final Set<Pair<byte [], Long>> blobs = blobManager.getBlobsAt(blobIndex);
+                //convert to an index
+                long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
 
-               if(blobs == null) { //data corrupt lets remove our reference.
+                //if there is a value on this hash, retrieve its value
+                if (blobIndex >= 0) {
 
-                   final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(-1L);
+                    Pair<byte[], Long> removing = null;
 
-                   randomWrite.seek(hashedIndex);
-                   randomWrite.write(bytesIndex);
+                    final Set<Pair<byte[], Long>> blobs = blobManager.getBlobsAt(blobIndex);
 
-               }
-               else {
+                    if (blobs == null) { //data corrupt lets remove our reference.
 
-                   for(Pair<byte [], Long> blob : blobs) {
+                        final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(-1L);
 
-                       if(equals(blob.getOne(), key)) {
+                        randomWrite.seek(hashedIndex);
+                        randomWrite.write(bytesIndex);
 
-                           //once we find a key that matches removed the value
-                           removing = blob;
-                           break;
+                    } else {
 
-                       }
+                        for (Pair<byte[], Long> blob : blobs) {
 
-                   }
+                            if (equals(blob.getOne(), key)) {
 
-               }
+                                //once we find a key that matches removed the value
+                                removing = blob;
+                                break;
 
-               if(removing != null) {
+                            }
 
-                   //save the blobs after removing the value mapped to our key
-                   blobs.remove(removing);
+                        }
 
-                   if(blobs.size() == 0) {
+                    }
 
-                       blobManager.eraseBlobs(blobIndex);
+                    if (removing != null) {
 
-                       //if blobs is empty, remove the hash as well.
+                        //save the blobs after removing the value mapped to our key
+                        blobs.remove(removing);
 
-                       final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(-1L);
+                        if (blobs.size() == 0) {
 
-                       randomWrite.seek(hashedIndex);
-                       randomWrite.write(bytesIndex);
+                            blobManager.eraseBlobs(blobIndex);
 
-                   }
-                   else {
+                            //if blobs is empty, remove the hash as well.
 
-                       final long newAddress = blobManager.setBlobs(blobIndex, blobs);
+                            final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(-1L);
 
-                       final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(newAddress);
+                            randomWrite.seek(hashedIndex);
+                            randomWrite.write(bytesIndex);
 
-                       randomWrite.seek(hashedIndex);
-                       randomWrite.write(bytesIndex);
+                        } else {
 
-                   }
+                            final long newAddress = blobManager.setBlobs(blobIndex, blobs);
 
-               }
+                            final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(newAddress);
 
-           }
+                            randomWrite.seek(hashedIndex);
+                            randomWrite.write(bytesIndex);
 
-        }
-        catch (FileNotFoundException e) {
-        
-            logger.error("file not found in fileHash putHash", e);
-            throw new RuntimeException("failed hash blob", e);
-        } 
-        catch (IOException e) {
-        
-            logger.error("io exception in fileHash putHash", e);
-            throw new RuntimeException("failed hash blob", e);
-        
+                        }
+
+                    }
+
+                }
+
+            } catch (FileNotFoundException e) {
+
+                logger.error("file not found in fileHash putHash", e);
+                throw new RuntimeException("failed hash blob", e);
+            } catch (IOException e) {
+
+                logger.error("io exception in fileHash putHash", e);
+                throw new RuntimeException("failed hash blob", e);
+
+            }
+            finally {
+                giveReader(randomRead);
+                giveWriter(randomWrite);
+            }
         }
                 
     }
     
     private void delete(int hashedIndex) throws ReadFailure, WriteFailure {
-        
-        try {
 
-           final byte [] currentKeyIn = new byte[BUCKET_SIZE];
-           randomRead.seek(hashedIndex);
+        final Object lock = getLock(hashedIndex);
 
-           //read in key at this hash location.
-           final int read = randomRead.read(currentKeyIn);
+        final RandomAccessFile randomRead = getReader();
+        final RandomAccessFile randomWrite = getWriter();
 
-           if(read <= 0) {
-               throw new RuntimeException("hash was not initialized properly");
-           }
+        synchronized (lock) {
+            try {
 
-           //convert to an index
-           long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
+                final byte[] currentKeyIn = new byte[BUCKET_SIZE];
+                randomRead.seek(hashedIndex);
 
-           //if there is a value on this hash, retrieve its value
-           if(blobIndex >= 0) {
+                //read in key at this hash location.
+                final int read = randomRead.read(currentKeyIn);
 
-               blobManager.eraseBlobs(blobIndex);
+                if (read <= 0) {
+                    throw new RuntimeException("hash was not initialized properly");
+                }
 
-               //if blobs is empty, remove the hash as well.
+                //convert to an index
+                long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
 
-               final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(-1L);
+                //if there is a value on this hash, retrieve its value
+                if (blobIndex >= 0) {
 
-               randomWrite.seek(hashedIndex);
-               randomWrite.write(bytesIndex);
+                    blobManager.eraseBlobs(blobIndex);
 
-           }
-          
-        }
-        catch (FileNotFoundException e) {
-        
-            logger.error("file not found in fileHash putHash", e);
-            throw new RuntimeException("failed hash blob", e);
-        } 
-        catch (IOException e) {
-        
-            logger.error("io exception in fileHash putHash", e);
-            throw new RuntimeException("failed hash blob", e);
-        
+                    //if blobs is empty, remove the hash as well.
+
+                    final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(-1L);
+
+                    randomWrite.seek(hashedIndex);
+                    randomWrite.write(bytesIndex);
+
+                }
+
+            } catch (FileNotFoundException e) {
+
+                logger.error("file not found in fileHash putHash", e);
+                throw new RuntimeException("failed hash blob", e);
+            } catch (IOException e) {
+
+                logger.error("io exception in fileHash putHash", e);
+                throw new RuntimeException("failed hash blob", e);
+
+            }
+            finally {
+                giveReader(randomRead);
+                giveWriter(randomWrite);
+            }
         }
 
     }

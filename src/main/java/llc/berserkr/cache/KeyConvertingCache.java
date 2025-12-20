@@ -101,7 +101,7 @@ public class KeyConvertingCache<Key, OldKey, Value> implements Cache<Key, Value>
 			internal.put(converter.convert(key), value);
 		} 
 		catch (final ResourceException e) {
-            throw new RuntimeException("<KeyConvertingCache><1>, " + e);
+            throw new RuntimeException("<KeyConvertingCache><1>, " + e, e);
         }
 		
 	}

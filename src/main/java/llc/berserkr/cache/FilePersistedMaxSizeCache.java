@@ -85,6 +85,7 @@ public class FilePersistedMaxSizeCache<Value> implements Cache<String, Value> {
             
         } 
         catch(ResourceException e) {
+            logger.error("Error while trying to load persisted cache", e);
             throw new RuntimeException("could not initialize");
         }
         

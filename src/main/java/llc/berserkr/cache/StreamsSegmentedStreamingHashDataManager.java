@@ -71,9 +71,6 @@ public class StreamsSegmentedStreamingHashDataManager {
             }
         }
 
-
-//        final byte [] pairData = getPairData(blobs);
-
         try {
 
             //find a free segment and write the data into it.
@@ -148,7 +145,6 @@ public class StreamsSegmentedStreamingHashDataManager {
                 tempFile.delete();
             }
 
-//            segmentedFile.write(e.getAddress(), pairData);
             segmentedFile.writeState(e.getAddress(), SegmentedStreamingFile.BOUND_STATE);
 
             endTransactions(segmentedFile);

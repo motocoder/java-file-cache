@@ -11,7 +11,9 @@ import java.io.*;
 import java.util.Arrays;
 import java.util.HashSet;
 
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -19,7 +21,6 @@ import java.util.Set;
  * 
  * this is a file backed hashing mechanism. 
  *
- * TODO need to review catastrophic failure error checking, i think it works though (reverses writes to delete items)
  * TODO make read/write seperated for threading reasons (should be able to read from stuff you aren't writting to while writting to other items)
  *
  * Some of this class was derived from: https://code.google.com/p/jdbm2/ 
@@ -37,7 +38,6 @@ public abstract class FileHash<Key, Value> {
     private final HashDataManager<Key, Value> blobManager;
     private final RandomAccessFile randomRead;
     private final RandomAccessFile randomWrite;
-
 
     public FileHash(
         final File file,

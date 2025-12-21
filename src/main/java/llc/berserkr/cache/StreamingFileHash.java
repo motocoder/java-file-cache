@@ -165,6 +165,11 @@ public class StreamingFileHash {
         }
     }
 
+    //This currently locks everything down when we write
+    //the objects should be able to be read by keys that aren't writing.
+    //we just can't read and write or write and write an index at the same time.
+    //building a locking mechanism is difficult to do this though.
+    // TODO build lock that lets readers come through but no write/write or read/write on same address cocurrently
     private Object getLock(long key) {
 
         synchronized (hashLocks) {

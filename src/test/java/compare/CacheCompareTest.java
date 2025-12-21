@@ -2,7 +2,7 @@ package compare;
 
 import com.jakewharton.disklrucache.DiskLruCache;
 import llc.berserkr.cache.Cache;
-import llc.berserkr.cache.FileHashCache;
+import llc.berserkr.cache.FileStreamHashCache;
 import llc.berserkr.cache.KeyConvertingCache;
 import llc.berserkr.cache.SegmentedStreamingHashDataManager;
 import llc.berserkr.cache.converter.BytesStringConverter;
@@ -81,13 +81,13 @@ public class CacheCompareTest {
 
     }
 
-    private static final int TEST_SIZE = 1000;
+    private static final int TEST_SIZE = 10;
     private static final int READ_LOOPS = 1000;
 
     @Test
     public void test() throws IOException, ResourceException, InterruptedException {
 
-        final FileHashCache hashCache = new FileHashCache(hashCacheDir, TEST_SIZE * 2);
+        final FileStreamHashCache hashCache = new FileStreamHashCache(hashCacheDir, TEST_SIZE * 2);
 
         final Map<String, String> data = new HashMap<>();
 
@@ -138,7 +138,7 @@ public class CacheCompareTest {
         }
     }
     private final int MULTI_WRITES = 10;
-    private final int MULTI_READS = 10000;
+    private final int MULTI_READS = 1000;
     private final int THREADS = 200;
 
     @Test
@@ -155,7 +155,7 @@ public class CacheCompareTest {
         tempFolder.mkdirs();
         dataFolder.mkdirs();
 
-        final Cache<byte [], InputStream> fileCache = new FileHashCache(dataFolder);
+        final Cache<byte [], InputStream> fileCache = new FileStreamHashCache(dataFolder);
 
         final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                 new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));

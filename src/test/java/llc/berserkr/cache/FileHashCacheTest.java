@@ -44,7 +44,7 @@ public class FileHashCacheTest {
 	        tempFolder.mkdirs();
 	        dataFolder.mkdirs();
 
-            final Cache<byte [], InputStream> fileCache = new FileHashCache(dataFolderItem);
+            final Cache<byte [], InputStream> fileCache = new FileStreamHashCache(dataFolderItem);
 
             final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                     new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
@@ -165,7 +165,7 @@ public class FileHashCacheTest {
 	        tempFolder.mkdirs();
 	        dataFolder.mkdirs();
 
-            final Cache<byte [], InputStream> fileCache = new FileHashCache(dataFolder);
+            final Cache<byte [], InputStream> fileCache = new FileStreamHashCache(dataFolder);
 
             final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                     new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
@@ -238,7 +238,7 @@ public class FileHashCacheTest {
         tempFolder.mkdirs();
         dataFolder.mkdirs();
         
-        final Cache<byte [], InputStream> fileCache = new FileHashCache(dataFolder);
+        final Cache<byte [], InputStream> fileCache = new FileStreamHashCache(dataFolder);
 
         final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                 new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
@@ -318,7 +318,7 @@ public class FileHashCacheTest {
 			final File dataFolder = new File(root2, "data");
 	        final File persistingFolder = new File(root2, "persisting");
 
-            final Cache<byte [], InputStream> fileCacheStream = new FileHashCache(dataFolder);
+            final Cache<byte [], InputStream> fileCacheStream = new FileStreamHashCache(dataFolder);
 
             final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                     new KeyConvertingCache<String, byte[], InputStream>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
@@ -380,7 +380,7 @@ public class FileHashCacheTest {
 		        deleteRoot(tempFolder);
 		        deleteRoot(dataFolder);
 
-                final Cache<byte [], InputStream> fileCacheStream = new FileHashCache(dataFolder);
+                final Cache<byte [], InputStream> fileCacheStream = new FileStreamHashCache(dataFolder);
 
                 final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                         new KeyConvertingCache<String, byte[], InputStream>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
@@ -446,7 +446,7 @@ public class FileHashCacheTest {
 		        deleteRoot(tempFolder);
 		        deleteRoot(dataFolder);
 
-                final Cache<byte [], InputStream> fileCacheStream = new FileHashCache(dataFolder);
+                final Cache<byte [], InputStream> fileCacheStream = new FileStreamHashCache(dataFolder);
 
                 final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                         new KeyConvertingCache<String, byte[], InputStream>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
@@ -510,7 +510,7 @@ public class FileHashCacheTest {
             tempFolder.mkdirs();
             dataFolder.mkdirs();
 
-            final Cache<byte [], InputStream> fileCacheStream = new FileHashCache(dataFolder);
+            final Cache<byte [], InputStream> fileCacheStream = new FileStreamHashCache(dataFolder);
 
             final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                     new KeyConvertingCache<String, byte[], InputStream>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
@@ -580,7 +580,7 @@ public class FileHashCacheTest {
             final File dataFolder = new File("./target/test-files/data-fileSizeTest");
             final File dataFolderItem = new File("./target/test-files/data-fileSizeTest/data");
 
-            final Cache<byte [], InputStream> fileCacheStream = new FileHashCache(dataFolder);
+            final Cache<byte [], InputStream> fileCacheStream = new FileStreamHashCache(dataFolder);
 
             final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                     new KeyConvertingCache<String, byte[], InputStream>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
@@ -653,7 +653,7 @@ public class FileHashCacheTest {
             tempFolder.mkdirs();
             dataFolder.mkdirs();
 
-            final Cache<byte [], InputStream> fileCacheStream = new FileHashCache(dataFolder);
+            final Cache<byte [], InputStream> fileCacheStream = new FileStreamHashCache(dataFolder);
 
             final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                     new KeyConvertingCache<String, byte[], InputStream>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));

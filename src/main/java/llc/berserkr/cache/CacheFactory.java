@@ -5,12 +5,8 @@ import llc.berserkr.cache.converter.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.LinkedList;
-import java.util.function.Consumer;
 
 import llc.berserkr.cache.converter.BytesStringConverter;
-import llc.berserkr.cache.exception.ResourceException;
-import llc.berserkr.cache.provider.*;
 
 public class CacheFactory {
     
@@ -37,7 +33,7 @@ public class CacheFactory {
         final File expiringDataFolder = new File(expiringRoot, "data");
         final File expiringTempFolder = new File(expiringRoot, "temp");
 
-        final FileHashCache diskCache = new FileHashCache(dataFolder);
+        final FileStreamHashCache diskCache = new FileStreamHashCache(dataFolder);
 
         final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                 new KeyConvertingCache<>(diskCache, new ReverseConverter<>(new BytesStringConverter()));
@@ -51,7 +47,7 @@ public class CacheFactory {
                     new SerializingConverter<Value>()
             );
 
-        final FileHashCache diskCache2 = new FileHashCache(expiringTempFolder);
+        final FileStreamHashCache diskCache2 = new FileStreamHashCache(expiringTempFolder);
 
         final KeyConvertingCache<String, byte [], InputStream> expringPersistDiskCache =
                 new KeyConvertingCache<>(diskCache2, new ReverseConverter<>(new BytesStringConverter()));

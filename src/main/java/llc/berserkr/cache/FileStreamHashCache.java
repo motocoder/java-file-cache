@@ -10,24 +10,23 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
 import java.util.List;
 
-public class FileHashCache implements Cache<byte [], byte []> {
+public class FileStreamHashCache implements Cache<byte [], InputStream> {
 
-    private static final Logger logger = LoggerFactory.getLogger(FileHashCache.class);
-
-    private final FileHash<byte [], byte []> hash;
+    private static final Logger logger = LoggerFactory.getLogger(FileStreamHashCache.class);
+    
+    private final StreamingFileHash hash;
 //    private boolean blockAll;
 
-    public FileHashCache(
+    public FileStreamHashCache(
         final File dataFolder
     ) throws IOException {
         this(dataFolder, 10000);
 
     }
 
-    public FileHashCache(
+    public FileStreamHashCache(
         final File dataFolder,
         final int hashSize
     ) throws IOException {
@@ -49,18 +48,7 @@ public class FileHashCache implements Cache<byte [], byte []> {
             throw new IllegalArgumentException("Invalid temp folder");
         }
 
-        hash = new FileHash<byte [], byte []>(hashFile, new SegmentedStreamingHashDataManager(dataFile), hashSize) {
-
-            @Override
-            public int hashCode(byte[] bytes) {
-                return Arrays.hashCode(bytes);
-            }
-
-            @Override
-            public boolean equals(byte[] key1, byte[] key2) {
-                return Arrays.equals(key1, key2);
-            }
-        };
+        hash = new StreamingFileHash(hashFile, blobFile, dataFile, tempFolder, hashSize);
 
     }
     @Override
@@ -70,15 +58,21 @@ public class FileHashCache implements Cache<byte [], byte []> {
 
         try {
 
-            final byte [] is = hash.get(key);
+            final InputStream is = hash.get(key);
 
             if(is != null) {
+                try {
+                    is.close();
+                } catch (IOException e) {
+                    throw new ResourceException(e);
+                }
+
                 return true;
             }
 
             return false;
 
-        } catch (ReadFailure e) {
+        } catch (ReadFailure | WriteFailure e) {
             throw new ResourceException("failure", e);
         }
         finally {
@@ -88,24 +82,64 @@ public class FileHashCache implements Cache<byte [], byte []> {
     }
 
     @Override
-    public byte [] get(byte [] key) throws ResourceException {
+    public InputStream get(byte [] key) throws ResourceException {
 
         getLock(false,false);
         
         try {
-            return hash.get(key);
-        } catch (ReadFailure e) {
+
+            final InputStream is = hash.get(key);
+
+            if(is == null) {
+                giveLock(false);
+                return null;
+            }
+
+            return new WrappingInputStream(is) {
+
+                private boolean sentLock;
+
+                private synchronized void giveLockOnce() {
+
+                    if(sentLock) {
+                        return;
+                    }
+
+                    giveLock(false);
+
+                    sentLock = true;
+
+                }
+
+                @Override
+                public void close() throws IOException {
+                    super.close();
+
+                    giveLockOnce();
+
+                }
+
+                @Override
+                public int available() throws IOException {
+
+                    final int returnVal = super.available();
+
+                    if(returnVal < 0) {
+                        giveLockOnce();
+                    }
+
+                    return returnVal;
+                }
+            };
+        } catch (ReadFailure | WriteFailure e) {
             giveLock(false);
             throw new ResourceException("failure", e);
-        }
-        finally {
-            giveLock(false);
         }
 
     }
 
     @Override
-    public List<byte []> getAll(List<byte[]> bytes) throws ResourceException {
+    public List<InputStream> getAll(List<byte[]> bytes) throws ResourceException {
         throw new RuntimeException("Not implemented");
     }
 
@@ -140,7 +174,7 @@ public class FileHashCache implements Cache<byte [], byte []> {
     }
 
     @Override
-    public void put(byte [] key, byte [] value) throws ResourceException {
+    public void put(byte [] key, InputStream value) throws ResourceException {
 
         getLock(true, true);
         try {
@@ -157,8 +191,8 @@ public class FileHashCache implements Cache<byte [], byte []> {
         
     }
 
-    private final Object lock = new Object();
-    private int lockCount = 0;
+//    private final Object lock = new Object();
+//    private int lockCount = 0;
 
     public void giveLock(boolean unBlockAll) {
 

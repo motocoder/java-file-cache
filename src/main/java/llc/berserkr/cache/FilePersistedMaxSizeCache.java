@@ -66,7 +66,7 @@ public class FilePersistedMaxSizeCache<Value> implements Cache<String, Value> {
             throw new IllegalArgumentException("Temp folder must be folder");
         }
 
-        final Cache<byte [], InputStream> diskCache = new FileHashCache(dataFolder);
+        final Cache<byte [], InputStream> diskCache = new FileStreamHashCache(dataFolder);
 
         final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                 new KeyConvertingCache<String, byte[], InputStream>(diskCache, new ReverseConverter<>(new BytesStringConverter()));

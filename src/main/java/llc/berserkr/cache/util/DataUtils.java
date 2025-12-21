@@ -259,4 +259,26 @@ public class DataUtils {
         }
     }
 
+    public static int copyAndCount(InputStream inputStream, OutputStream outputStream) throws IOException {
+
+        byte[] buffer = new byte[8192]; // Use a sensible buffer size (e.g., 1KB, 4KB, 8KB)
+        int bytesRead;
+
+        int totalRead = 0;
+
+        // Read from the input stream into the buffer until the end of the stream is reached (read() returns -1)
+        while ((bytesRead = inputStream.read(buffer)) != -1) {
+            // Write the read bytes to the output stream
+            outputStream.write(buffer, 0, bytesRead);
+
+            totalRead += bytesRead;
+        }
+
+        // It's good practice to flush the output stream to ensure all buffered bytes are written to the destination
+        outputStream.flush();
+
+        return totalRead;
+
+    }
+
 }

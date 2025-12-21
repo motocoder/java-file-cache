@@ -2,24 +2,22 @@ package llc.berserkr.cache;
 
 import llc.berserkr.cache.converter.*;
 import llc.berserkr.cache.exception.ResourceException;
-import llc.berserkr.cache.hash.SegmentedBytesDataManager;
 import llc.berserkr.cache.util.StreamUtil;
 import llc.berserkr.cache.util.StringUtilities;
 import org.apache.log4j.BasicConfigurator;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
-
 
 public class BytesFileCacheTest {
 
@@ -223,14 +221,16 @@ public class BytesFileCacheTest {
 		}
 		
 	}
-	
+
+    boolean flag = false;
+
 	@Test 
 	public void multiThreadedTest() throws IOException {
 		
 		final ExecutorService pool = Executors.newFixedThreadPool(100);
 
-        final File tempFolder = new File("./target/test-files/temp-data");
-        final File dataFolder = new File("./target/test-files/data");
+        final File tempFolder = new File("./target/test-files/" + UUID.randomUUID().toString() + "temp-data");
+        final File dataFolder = new File("./target/test-files/"  + UUID.randomUUID().toString() + "data");
         
         deleteRoot(tempFolder);
         deleteRoot(dataFolder);
@@ -245,7 +245,8 @@ public class BytesFileCacheTest {
 
 //		final Cache<String, InputStream> cache = new SynchronizedCache<String, InputStream>(keyConvertingCache);
         final Cache<String, byte[]> cache = keyConvertingCache;
-		
+
+        flag = false;
 		for (int x = 0; x < 99; x++) {
 
             final int pre = x;
@@ -275,12 +276,14 @@ public class BytesFileCacheTest {
                                     final String returnValue = new String(cache.get(key));
 
                                     assertEquals(value, returnValue);
-                                    assertEquals(cache.exists(key), true);
+                                    assertEquals(true, cache.exists(key));
+
                                 }
                             }
 					        
-						} catch (ResourceException e) {
+						} catch (Throwable e) {
 							e.printStackTrace();
+                            flag = true;
 						}
 
                     }
@@ -299,7 +302,7 @@ public class BytesFileCacheTest {
 		catch (InterruptedException e1) {
 			e1.printStackTrace();
 		}
-		
+		assertFalse(flag);
 	}
 	
 	@Test
@@ -307,7 +310,7 @@ public class BytesFileCacheTest {
 		
 		try {
 	        
-			File root2 = new File("./target/test-files/temp-extra/");
+			File root2 = new File("./target/test-files/" + UUID.randomUUID().toString() + "_temp-extra/");
 			
 			deleteRoot(root2);
 			

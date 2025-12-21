@@ -7,7 +7,7 @@ public class ReadFailure extends Exception {
         super(message);
     }
 
-    public ReadFailure(String message, IOException e) {
+    public ReadFailure(String message, Exception e) {
         super(message, e);
     }
 }

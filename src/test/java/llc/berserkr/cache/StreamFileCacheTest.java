@@ -14,6 +14,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -225,14 +226,18 @@ public class StreamFileCacheTest {
 		}
 		
 	}
+
+    private boolean flag = false;
 	
 	@Test 
 	public void multiThreadedTest() throws IOException {
+
+        System.out.println("multi1");
 		
 		final ExecutorService pool = Executors.newFixedThreadPool(100);
 
-        final File tempFolder = new File("./target/test-files/temp-data");
-        final File dataFolder = new File("./target/test-files/data");
+        final File tempFolder = new File("./target/test-files/" + UUID.randomUUID().toString() + "_temp-data");
+        final File dataFolder = new File("./target/test-files/" + UUID.randomUUID().toString() + "_data");
         
         deleteRoot(tempFolder);
         deleteRoot(dataFolder);
@@ -245,9 +250,10 @@ public class StreamFileCacheTest {
         final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                 new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
 
-//		final Cache<String, InputStream> cache = new SynchronizedCache<String, InputStream>(keyConvertingCache);
         final Cache<String, InputStream> cache = keyConvertingCache;
-		
+
+        flag = false;
+
 		for (int x = 0; x < 99; x++) {
 
             final int pre = x;
@@ -269,7 +275,6 @@ public class StreamFileCacheTest {
 					        logger.info("putting value: " + value + " with the key of " + key);
 					        
 					        // TEST PUT, GET, REMOVE, and EXISTS
-
                             for(int i = 0; i < 10; i++) {
                                 cache.put(key, new ByteArrayInputStream(value.getBytes()));
 
@@ -278,14 +283,16 @@ public class StreamFileCacheTest {
 
                                     assertEquals(value, returnValue);
                                     assertEquals(cache.exists(key), true);
+
+
                                 }
                             }
 					        
-						} catch (ResourceException e) {
+						} catch (Throwable e) {
 							e.printStackTrace();
-						} catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
+
+                            flag = true;
+						}
 
                     }
                     
@@ -303,6 +310,8 @@ public class StreamFileCacheTest {
 		catch (InterruptedException e1) {
 			e1.printStackTrace();
 		}
+
+        assertFalse(flag);
 		
 	}
 	
@@ -311,7 +320,7 @@ public class StreamFileCacheTest {
 		
 		try {
 	        
-			File root2 = new File("./target/test-files/temp/");
+			File root2 = new File("./target/test-files/temp"  + UUID.randomUUID().toString() + "/");
 			
 			deleteRoot(root2);
 			
@@ -577,7 +586,7 @@ public class StreamFileCacheTest {
         
         try {
 
-            final File dataFolder = new File("./target/test-files/data-fileSizeTest3");
+            final File dataFolder = new File("./target/test-files/" + UUID.randomUUID().toString() + "data-fileSizeTest");
 
             dataFolder.delete();
 

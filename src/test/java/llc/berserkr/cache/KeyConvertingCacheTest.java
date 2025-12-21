@@ -4,6 +4,7 @@ import llc.berserkr.cache.converter.Converter;
 import llc.berserkr.cache.converter.InputStreamConverter;
 import llc.berserkr.cache.converter.ReverseConverter;
 import llc.berserkr.cache.exception.ResourceException;
+import llc.berserkr.cache.hash.SegmentedBytesDataManager;
 import llc.berserkr.cache.loader.DefaultResourceLoader;
 import llc.berserkr.cache.loader.ResourceLoader;
 import org.junit.jupiter.api.*;
@@ -13,6 +14,8 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import static llc.berserkr.cache.hash.SegmentedStreamingFile.bytesToLong;
+import static llc.berserkr.cache.hash.SegmentedStreamingFile.longToByteArray;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class KeyConvertingCacheTest {
@@ -21,12 +24,14 @@ public class KeyConvertingCacheTest {
 	private static KeyConvertingCache<Long, String, byte[]> testCacheWithResourceLoader;
 
 	private static File rootDir = new File("./target/test-files/test1/");
-	private static KeyConvertingCache<Long, String, byte[]> testCacheWithFileCache;
+    private static File segments = new File(rootDir, "segments");
+	private static KeyConvertingCache<Long, byte [], byte[]> testCacheWithFileCache;
 
 	private final static String TEST_VAL1 = "Test Value 1";
 	private final static String TEST_VAL2 = "Test Value 2";
+    private static BytesFileCache fileCache;
 
-	@BeforeAll
+    @BeforeAll
 	public static void setUpBeforeClass() throws Exception {
 
 		LongStringConverter converter = new LongStringConverter();
@@ -63,7 +68,23 @@ public class KeyConvertingCacheTest {
 				converter
 				);
 
-		Converter<byte[], InputStream> valueConverter = new ReverseConverter<byte[], InputStream>(new InputStreamConverter());
+        fileCache = new BytesFileCache(segments); // 2000 is to keep a rogue test case from eating disk, -1 so no worries about expiration.
+
+        testCacheWithFileCache = new KeyConvertingCache<Long, byte [], byte[]> (
+                fileCache,
+                new Converter<Long, byte[]>() {
+
+                    @Override
+                    public byte[] convert(Long aLong) throws ResourceException {
+                        return longToByteArray(aLong);
+                    }
+
+                    @Override
+                    public Long restore(byte[] newVal) throws ResourceException {
+                        return bytesToLong(newVal);
+                    }
+                }
+        );
 
 	}
 
@@ -80,19 +101,18 @@ public class KeyConvertingCacheTest {
 	}
 
 	@Test
-	public void testCacheFlavor() {
+	public void testCacheFlavor() throws ResourceException {
 
 		deleteRoot(rootDir);
 
 		// Try a put and make sure a file is created.
 		testCacheWithFileCache.put(1L, TEST_VAL1.getBytes());
-		File expectedFile = new File(rootDir, "1");
-		assertTrue(expectedFile.exists());
+		assertNotNull(testCacheWithFileCache.get(1L));
 
 		// Put another an make sure they both have files created.
 		testCacheWithFileCache.put(2L, TEST_VAL2.getBytes());
-		File expectedFile2 = new File(rootDir, "1");
-		assertTrue(expectedFile2.exists());
+
+        assertNotNull(testCacheWithFileCache.get(2L));
 		
 		// Test exists().
 		try {
@@ -134,24 +154,10 @@ public class KeyConvertingCacheTest {
 		keys.add(1L);
 		keys.add(2L);
 		keys.add(3L);
-
-		try {
-			List<byte[]> results = testCacheWithFileCache.getAll(keys);
-			assertNotNull(results);
-			assertTrue(results.size() == 4);
-			logResults(results);
-			assertTrue(results.get(0) == null);
-			assertTrue(new String(results.get(1)).equals(TEST_VAL1));
-			assertTrue(new String(results.get(2)).equals(TEST_VAL2));
-			assertTrue(results.get(3) == null);
-		} catch (ResourceException e) {
-			System.out.println(e);
-			fail();
-		}
 		
 		// Now test remove()
 		testCacheWithFileCache.remove(1L);
-		assertFalse(expectedFile.exists());
+        assertNull(testCacheWithFileCache.get(1L));
 		
 		// and clear()
 		try {
@@ -160,7 +166,7 @@ public class KeyConvertingCacheTest {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-		assertFalse(expectedFile2.exists());
+        assertNull(testCacheWithFileCache.get(2L));
 		
 	}
 

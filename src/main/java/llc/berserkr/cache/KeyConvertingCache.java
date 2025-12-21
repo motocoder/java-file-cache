@@ -3,9 +3,11 @@ package llc.berserkr.cache;
 import llc.berserkr.cache.converter.Converter;
 import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.loader.ResourceLoader;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
 
 /*
  * This class allows access to a cache via an interface key type (TKey)
@@ -13,6 +15,8 @@ import java.util.List;
  */
 
 public class KeyConvertingCache<Key, OldKey, Value> implements Cache<Key, Value> {
+
+    private static final Logger logger = LoggerFactory.getLogger(KeyConvertingCache.class);
 
     private final Cache<OldKey, Value> internal;
     private final Converter<Key, OldKey> converter;
@@ -89,6 +93,7 @@ public class KeyConvertingCache<Key, OldKey, Value> implements Cache<Key, Value>
 			internal.remove(converter.convert(key));
 		} 
 		catch (final ResourceException e) {
+            logger.error("ERROR ", e);
             throw new RuntimeException("<KeyConvertingCache><1>, " + e);
         }
 		

@@ -26,7 +26,7 @@ public class BytesFileCache implements Cache<byte [], byte []> {
     public BytesFileCache(
         final File dataFolder,
         final int hashSize
-    ) throws IOException {
+    ) {
 
         dataFolder.mkdirs();
 
@@ -42,7 +42,11 @@ public class BytesFileCache implements Cache<byte [], byte []> {
     }
     @Override
     public boolean exists(byte [] key) throws ResourceException {
-    	
+
+        if(key == null || key.length == 0) {
+            throw new IllegalArgumentException("invalid key length");
+        }
+
         try {
             return hash.get(key) != null;
         } catch (ReadFailure e) {
@@ -53,7 +57,11 @@ public class BytesFileCache implements Cache<byte [], byte []> {
 
     @Override
     public byte [] get(byte [] key) throws ResourceException {
-        
+
+        if(key == null || key.length == 0) {
+            throw new IllegalArgumentException("invalid key length");
+        }
+
         try {
             return hash.get(key);
         } catch (ReadFailure e) {
@@ -79,6 +87,10 @@ public class BytesFileCache implements Cache<byte [], byte []> {
 
     @Override
     public void remove(byte [] key) throws ResourceException {
+
+        if(key == null || key.length == 0) {
+            throw new IllegalArgumentException("invalid key length");
+        }
                 
         try {
             hash.remove(key);
@@ -90,6 +102,10 @@ public class BytesFileCache implements Cache<byte [], byte []> {
 
     @Override
     public void put(byte [] key, byte [] value) throws ResourceException {
+
+        if(key == null || key.length == 0) {
+            throw new IllegalArgumentException("invalid key length");
+        }
         
         try {
             hash.put(key, value);

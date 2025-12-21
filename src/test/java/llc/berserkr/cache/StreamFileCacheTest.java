@@ -531,12 +531,16 @@ public class StreamFileCacheTest {
             for(int i = 0; i < 500; i++) {
                 
                 final int random = (int) (Math.random() * 100);
+
+                if(random == 0) {
+                    continue;
+                }
                 
                 if(i % 100 == 0) {
                     
                     logger.debug("Size of data " + dataFolderItem.length());
                     
-                    for(int j = 0; j < 100; j++) {
+                    for(int j = 1; j < 100; j++) {
                         
                         final String key = StringUtilities.repeat(keyOrig, j);
                         
@@ -576,10 +580,10 @@ public class StreamFileCacheTest {
     public void fileSizeTest() throws IOException {
         
         try {
-                            
-            final File tempFolder = new File("./target/test-files/temp-data-fileSizeTest");
-            final File dataFolder = new File("./target/test-files/data-fileSizeTest");
-            final File dataFolderItem = new File("./target/test-files/data-fileSizeTest/data");
+
+            final File dataFolder = new File("./target/test-files/data-fileSizeTest3");
+
+            dataFolder.delete();
 
             final Cache<byte [], InputStream> fileCacheStream = new StreamFileCache(dataFolder);
 
@@ -595,15 +599,17 @@ public class StreamFileCacheTest {
             for(int i = 0; i < 500; i++) {
                 
                 final int random = (int) (Math.random() * 100);
+
+                if(random == 0) {
+                    continue;
+                }
                 
                 if(i % 100 == 0) {
                     
-                    logger.debug("Size of data " + dataFolderItem.length());
-                    
-                    for(int j = 0; j < 100; j++) {
+                    for(int j = 1; j < 100; j++) {
                         
                         final String key = StringUtilities.repeat(keyOrig, j);
-                        
+
                         cache.remove(key);
                         
                         assertEquals(cache.exists(key), false);
@@ -675,6 +681,10 @@ public class StreamFileCacheTest {
                     
                     final int random = (int) (Math.random() * 100);
                     // TEST PUT, GET, REMOVE, and EXISTS
+
+                    if(random == 0) {
+                        continue;
+                    }
                     
                     final String value = StringUtilities.repeat(valueOrig, random);
                     final String key = StringUtilities.repeat(keyOrig, random);
@@ -691,6 +701,10 @@ public class StreamFileCacheTest {
                 {
                     
                     final int random = (int) (Math.random() * 100);
+
+                    if(random == 0) {
+                        continue;
+                    }
                     
                     final String key = StringUtilities.repeat(keyOrig, random);
                     

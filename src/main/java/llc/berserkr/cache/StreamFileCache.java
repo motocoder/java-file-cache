@@ -18,19 +18,17 @@ public class StreamFileCache implements Cache<byte [], InputStream> {
     private static final Logger logger = LoggerFactory.getLogger(StreamFileCache.class);
     
     private final StreamingFileHash hash;
-//    private boolean blockAll;
 
     public StreamFileCache(
         final File dataFolder
     ) throws IOException {
         this(dataFolder, 10000);
-
     }
 
     public StreamFileCache(
         final File dataFolder,
         final int hashSize
-    ) throws IOException {
+    ) {
 
         dataFolder.mkdirs();
 
@@ -55,7 +53,9 @@ public class StreamFileCache implements Cache<byte [], InputStream> {
     @Override
     public boolean exists(byte [] key) throws ResourceException {
 
-        getLock(false,false);
+        if(key == null || key.length == 0) {
+            throw new IllegalArgumentException("invalid key length");
+        }
 
         try {
 
@@ -76,23 +76,21 @@ public class StreamFileCache implements Cache<byte [], InputStream> {
         } catch (ReadFailure | WriteFailure e) {
             throw new ResourceException("failure", e);
         }
-        finally {
-            giveLock(false);
-        }
 
     }
 
     @Override
     public InputStream get(byte [] key) throws ResourceException {
 
-        getLock(false,false);
-        
+        if(key == null || key.length == 0) {
+            throw new IllegalArgumentException("invalid key length");
+        }
+
         try {
 
             final InputStream is = hash.get(key);
 
             if(is == null) {
-                giveLock(false);
                 return null;
             }
 
@@ -105,8 +103,6 @@ public class StreamFileCache implements Cache<byte [], InputStream> {
                     if(sentLock) {
                         return;
                     }
-
-                    giveLock(false);
 
                     sentLock = true;
 
@@ -133,7 +129,6 @@ public class StreamFileCache implements Cache<byte [], InputStream> {
                 }
             };
         } catch (ReadFailure | WriteFailure e) {
-            giveLock(false);
             throw new ResourceException("failure", e);
         }
 
@@ -147,14 +142,10 @@ public class StreamFileCache implements Cache<byte [], InputStream> {
     @Override
     public void clear() throws ResourceException {
 
-        getLock(true, true);
         try {
             hash.clear();
         } catch (ReadFailure | WriteFailure e) {
             throw new ResourceException("failure", e);
-        }
-        finally {
-            giveLock(true);
         }
 
     }
@@ -162,14 +153,14 @@ public class StreamFileCache implements Cache<byte [], InputStream> {
     @Override
     public void remove(byte [] key) throws ResourceException {
 
-        getLock(true, true);
+        if(key == null || key.length == 0) {
+            throw new IllegalArgumentException("invalid key length");
+        }
+
         try {
             hash.remove(key);
         } catch (ReadFailure | WriteFailure e) {
             throw new ResourceException("failure", e);
-        }
-        finally {
-            giveLock(true);
         }
 
     }
@@ -177,7 +168,10 @@ public class StreamFileCache implements Cache<byte [], InputStream> {
     @Override
     public void put(byte [] key, InputStream value) throws ResourceException {
 
-        getLock(true, true);
+        if(key == null || key.length == 0) {
+            throw new IllegalArgumentException("invalid key length");
+        }
+
         try {
             
             hash.put(key, value);
@@ -186,55 +180,7 @@ public class StreamFileCache implements Cache<byte [], InputStream> {
         catch (ReadFailure | WriteFailure e) {
             throw new ResourceException("failure", e);
         }
-        finally {
-            giveLock(true);
-        }
         
-    }
-
-//    private final Object lock = new Object();
-//    private int lockCount = 0;
-
-    public void giveLock(boolean unBlockAll) {
-
-//        synchronized (lock) {
-//            lockCount--;
-//
-//            if(unBlockAll) {
-//                blockAll = false;
-//                lock.notifyAll();
-//            }
-//
-//            if(lockCount == 0) {
-//                lock.notifyAll();
-//            }
-//
-//        }
-    }
-
-    private void getLock(boolean blockAll, boolean block) {
-
-//        synchronized (lock) {
-//
-//            //if we are blocking to lock it, or everyone is blocked
-//            if(block || this.blockAll) {
-//
-//                //while we are blocking and locks are out or everyone is blocked
-//                while((block && lockCount != 0)|| this.blockAll) {
-//                    try {
-//                        lock.wait();
-//                    } catch (InterruptedException e) {
-//                        throw new RuntimeException(e);
-//                    }
-//                }
-//            }
-//
-//            this.blockAll = blockAll;
-//
-//            lockCount++;
-//
-//        }
-
     }
 
 }

@@ -29,10 +29,10 @@ public class SegmentedStreamingFile {
     private final File root;
     private final SegmentReference reference = new SegmentReference();
 
-
     private long lastKnownAddress = START_OFFSET;
     private static final int WRITE_BUFFER_SIZE = 8192;
 
+    private final LocalRandomAccess localAccess;
     /**
      *
      * File format for a forward linked list of segments that can vary in size and fill.
@@ -43,8 +43,7 @@ public class SegmentedStreamingFile {
      * File format is such
      * [x, ... 1024][[x,x,x,x][x][x,x,x,x][x*n] * count of entries] 1024 transaction bytes (reserved), segmentSize(4bytes), type(1byte), fillSize(4bytes), payload(segmentSize bytes)
      *
-     * TODO seperate reads/write so they can run on different threads at the same time.
-     * TODO memory cache has an O^n issue that affect performance some when a lot of segments exist
+     * TODO memory cache has an O^n issue that affect performance some when a lot of segments exist (really only matters at like 10k+ keys)
      * TODO write the memory cache of addresses and state in C, would probably double the performance of this sytem because that's the bottle neck.
      *
      * @param root
@@ -74,6 +73,8 @@ public class SegmentedStreamingFile {
         } catch (IOException e) {
             throw new IllegalStateException("there's an issue with file for segments", e);
         }
+
+        localAccess = new LocalRandomAccess(root);
 
         validateData();
 
@@ -186,7 +187,7 @@ public class SegmentedStreamingFile {
      */
     public void write(long address, byte[] segment) throws ReadFailure, WriteFailure {
 
-        final RandomAccessFile writeRandom = getWriter();
+        final RandomAccessFile writeRandom = localAccess.getWriter();
 
         try {
 
@@ -202,7 +203,7 @@ public class SegmentedStreamingFile {
             throw new WriteFailure("failed to write " + e.getMessage());
         }
         finally {
-            giveWriter(writeRandom);
+            localAccess.giveWriter(writeRandom);
         }
     }
 
@@ -219,7 +220,7 @@ public class SegmentedStreamingFile {
     public void write(long address, InputStream segment) throws ReadFailure, WriteFailure {
 
 
-        final RandomAccessFile writeRandom = getWriter();
+        final RandomAccessFile writeRandom = localAccess.getWriter();
 
         try {
 
@@ -257,7 +258,7 @@ public class SegmentedStreamingFile {
             throw new WriteFailure("failed to write " + e.getMessage());
         }
         finally {
-            giveWriter(writeRandom);
+            localAccess.giveWriter(writeRandom);
         }
 
     }
@@ -272,7 +273,7 @@ public class SegmentedStreamingFile {
      */
     public void writeState(long address, byte state) throws WriteFailure, ReadFailure {
 
-        final RandomAccessFile writeRandom = getWriter();
+        final RandomAccessFile writeRandom = localAccess.getWriter();
 
         try {
 
@@ -292,7 +293,7 @@ public class SegmentedStreamingFile {
             throw new ReadFailure("unknown read error " + e.getMessage(), e);
         }
         finally {
-            giveWriter(writeRandom);
+            localAccess.giveWriter(writeRandom);
         }
     }
 
@@ -300,21 +301,22 @@ public class SegmentedStreamingFile {
 
         long address = lastKnownAddress; //shortcut to the last address if we already know it
 
-        final RandomAccessFile readRandom = getReader();
+        final RandomAccessFile readRandom = localAccess.getReader();
 
         try {
 
             while (true) {
 
                 //this only ever really runs through once the first time, then we know the last address
-                //it's a forward linked list though so there's no way to go from the back to the front
+                //it's a forward linked list so there's no way to go from the back to the front reliably
                 readRandom.seek(address);
 
                 final byte[] segmentSize = new byte[SEGMENT_LENGTH_BYTES_COUNT + 1];
 
                 try {
 
-                    readRandom.readFully(segmentSize, 0, segmentSize.length); //read in the segment size, this blows an EOF if we are at the end
+                    //read in the segment size, this blows an EOF if we are at the end
+                    readRandom.readFully(segmentSize, 0, segmentSize.length);
 
                     //didn't blow up so lets process the info for this segment and cache it.
                     final int segmentLength = bytesToInt(new byte [] {segmentSize[0],  segmentSize[1], segmentSize[2], segmentSize[3]});
@@ -339,7 +341,7 @@ public class SegmentedStreamingFile {
             throw new ReadFailure("failed to read " + e.getMessage(), e);
         }
         finally {
-            giveReader(readRandom);
+            localAccess.giveReader(readRandom);
         }
     }
 
@@ -356,8 +358,8 @@ public class SegmentedStreamingFile {
 
         long address = lastKnownAddress; //shortcut to the last address if we already know it
 
-        final RandomAccessFile readRandom = getReader();
-        final RandomAccessFile writeRandom = getWriter();
+        final RandomAccessFile readRandom = localAccess.getReader();
+        final RandomAccessFile writeRandom = localAccess.getWriter();
 
         try {
             while (true) {
@@ -370,7 +372,8 @@ public class SegmentedStreamingFile {
 
                 try {
 
-                    readRandom.readFully(segmentSize, 0, segmentSize.length); //read in the segment size, this blows an EOF if we are at the end
+                    //read in the segment size, this blows an EOF if we are at the end
+                    readRandom.readFully(segmentSize, 0, segmentSize.length);
 
                     //didn't blow up so lets process the info for this segment and cache it.
                     final int segmentLength = bytesToInt(new byte [] {segmentSize[0],  segmentSize[1], segmentSize[2], segmentSize[3]});
@@ -409,7 +412,6 @@ public class SegmentedStreamingFile {
 
                         }
 
-//                        writeRandom.write(segment);
                         writeRandom.seek(address);
                         writeRandom.write(intToByteArray(totalRead));
                         writeRandom.seek(address + SEGMENT_LENGTH_BYTES_COUNT + 1);
@@ -435,8 +437,8 @@ public class SegmentedStreamingFile {
             throw new ReadFailure("failed to read " + e.getMessage(), e);
         }
         finally {
-            giveReader(readRandom);
-            giveWriter(writeRandom);
+            localAccess.giveReader(readRandom);
+            localAccess.giveWriter(writeRandom);
         }
     }
 
@@ -491,7 +493,7 @@ public class SegmentedStreamingFile {
                         case null :
                         default: {
 
-                            final RandomAccessFile readRandom = getReader();
+                            final RandomAccessFile readRandom = localAccess.getReader();
 
                             try {
                                 //go to the next address since we didn't have it cached
@@ -517,7 +519,7 @@ public class SegmentedStreamingFile {
                                 break;
                             }
                             finally {
-                                giveReader(readRandom);
+                                localAccess.giveReader(readRandom);
                             }
                         }
 
@@ -598,7 +600,7 @@ public class SegmentedStreamingFile {
      */
     public void setSegmentSize(long address, int segmentSize) throws WriteFailure, ReadFailure {
 
-        final RandomAccessFile writeRandom = getWriter();
+        final RandomAccessFile writeRandom = localAccess.getWriter();
 
         try {
 
@@ -612,52 +614,9 @@ public class SegmentedStreamingFile {
             throw new WriteFailure("failed to write " + e.getMessage());
         }
         finally {
-            giveWriter(writeRandom);
+            localAccess.giveWriter(writeRandom);
         }
 
-    }
-
-    private final List<RandomAccessFile> readers = new LinkedList<>();
-    private final List<RandomAccessFile> writers = new LinkedList<>();
-
-    private void giveReader(RandomAccessFile reader) {
-        synchronized (readers) {
-            readers.add(reader);
-        }
-    }
-    private RandomAccessFile getReader() {
-        synchronized (readers) {
-            if(readers.size() == 0) {
-                try {
-                    return new RandomAccessFile(root, "r");
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException("hash file isn't working", e);
-                }
-            }
-            else {
-                return readers.removeFirst();
-            }
-        }
-    }
-
-    private void giveWriter(RandomAccessFile reader) {
-        synchronized (writers) {
-            writers.add(reader);
-        }
-    }
-    private RandomAccessFile getWriter() {
-        synchronized (writers) {
-            if(writers.size() == 0) {
-                try {
-                    return new RandomAccessFile(root, "rws");
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException("hash file isn't working", e);
-                }
-            }
-            else {
-                return writers.removeFirst();
-            }
-        }
     }
 
     /**
@@ -671,7 +630,7 @@ public class SegmentedStreamingFile {
 
         try {
 
-            final RandomAccessFile readRandom = getReader();
+            final RandomAccessFile readRandom = localAccess.getReader();
 
             readRandom.seek(address);
 
@@ -742,7 +701,7 @@ public class SegmentedStreamingFile {
 
                         this.access = null;
 
-                        giveReader(readRandom);
+                        localAccess.giveReader(readRandom);
 
                     }
                 };
@@ -780,7 +739,7 @@ public class SegmentedStreamingFile {
 
         }
 
-        final RandomAccessFile writeRandom = getWriter();
+        final RandomAccessFile writeRandom = localAccess.getWriter();
 
         try {
 
@@ -793,14 +752,14 @@ public class SegmentedStreamingFile {
             throw new WriteFailure("failed to write " + e.getMessage());
         }
         finally {
-            giveWriter(writeRandom);
+            localAccess.giveWriter(writeRandom);
         }
 
     }
 
     public byte[] readTransactionalBytes() throws ReadFailure {
 
-        final RandomAccessFile readRandom = getReader();
+        final RandomAccessFile readRandom = localAccess.getReader();
 
         try {
 
@@ -830,7 +789,7 @@ public class SegmentedStreamingFile {
             throw new ReadFailure("unknown read error " + e.getMessage(), e);
         }
         finally {
-            giveReader(readRandom);
+            localAccess.giveReader(readRandom);
         }
 
     }
@@ -843,7 +802,7 @@ public class SegmentedStreamingFile {
      */
     public byte readSegmentState(long address) throws ReadFailure {
 
-        final RandomAccessFile readRandom = getReader();
+        final RandomAccessFile readRandom = localAccess.getReader();
 
         try {
 
@@ -871,7 +830,7 @@ public class SegmentedStreamingFile {
             throw new ReadFailure("unknown read error " + e.getMessage(), e);
         }
         finally {
-            giveReader(readRandom);
+            localAccess.giveReader(readRandom);
         }
 
     }
@@ -1085,8 +1044,12 @@ public class SegmentedStreamingFile {
 
     public void clear() throws ReadFailure, WriteFailure {
 
-        try(final RandomAccessFile random = new RandomAccessFile(root, "rws")) {
-            random.setLength(0);
+
+        try {
+
+            final RandomAccessFile writer = localAccess.getWriter();
+
+            writer.setLength(0);
         } catch (FileNotFoundException e) {
             throw new ReadFailure("file doesn't exist", e);
         } catch (IOException e) {

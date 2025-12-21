@@ -53,6 +53,10 @@ public class StreamsSegmentedStreamingHashDataManager {
 
         }
 
+        //We have to know the size of the data written in order to assign it to a segmented item
+        //to do this we write it to temporary file then read it back and write it into the segment.
+        //I don't think there's any other way to do this, this ultimately is a big limitation of the
+        //streaming cache vs one doing it all in byte arrays. That's why we have the option for both.
         final int length;
 
         final File tempFile = new File(tempDirectory, UUID.randomUUID().toString());

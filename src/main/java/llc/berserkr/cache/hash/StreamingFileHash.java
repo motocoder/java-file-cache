@@ -18,8 +18,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * 
  * this is a file backed hashing mechanism. 
  *
- * TODO make read/write seperated for threading reasons (should be able to read from stuff you aren't writting to while writting to other items)
- *
  * Some of this class was derived from: https://code.google.com/p/jdbm2/ 
  *
  * **/
@@ -37,7 +35,7 @@ public class StreamingFileHash {
     private final BlobsSegmentedStreamingHashDataManager blobManager;
 
     private final StreamsSegmentedStreamingHashDataManager dataManager;
-    private final File tempDirectory;
+    private final LocalRandomAccess localAccess;
 
     public StreamingFileHash(
         final File file,
@@ -57,59 +55,16 @@ public class StreamingFileHash {
             hashLocks.put(i * (BUCKET_SIZE), new Object());
         }
 
-        this.tempDirectory = tempDirectory;
         this.blobManager = new BlobsSegmentedStreamingHashDataManager(blobFile);
         this.dataManager = new StreamsSegmentedStreamingHashDataManager(dataFile, tempDirectory);
         this.file = file;
+        this.localAccess = new LocalRandomAccess(file);
 
         //if the file doesn't exist, initialize an empty hash of the desired size
         if(!file.exists()) {
             initFile();
         }
 
-    }
-
-    private final List<RandomAccessFile> readers = new LinkedList<>();
-    private final List<RandomAccessFile> writers = new LinkedList<>();
-
-    private void giveReader(RandomAccessFile reader) {
-        synchronized (readers) {
-            readers.add(reader);
-        }
-    }
-    private RandomAccessFile getReader() {
-        synchronized (readers) {
-            if(readers.size() == 0) {
-                try {
-                    return new RandomAccessFile(file, "r");
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException("hash file isn't working", e);
-                }
-            }
-            else {
-                return readers.removeFirst();
-            }
-        }
-    }
-
-    private void giveWriter(RandomAccessFile reader) {
-        synchronized (writers) {
-            writers.add(reader);
-        }
-    }
-    private RandomAccessFile getWriter() {
-        synchronized (writers) {
-            if(writers.size() == 0) {
-                try {
-                    return new RandomAccessFile(file, "rws");
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException("hash file isn't working", e);
-                }
-            }
-            else {
-                return writers.removeFirst();
-            }
-        }
     }
 
 
@@ -204,8 +159,8 @@ public class StreamingFileHash {
              
         try {
 
-           final RandomAccessFile randomRead = getReader();
-           final RandomAccessFile randomWrite = getWriter();
+           final RandomAccessFile randomRead = localAccess.getReader();
+           final RandomAccessFile randomWrite = localAccess.getWriter();
 
            final Object lock = getLock(hashedIndex);
 
@@ -280,8 +235,8 @@ public class StreamingFileHash {
            }
            finally {
 
-               giveReader(randomRead);
-               giveWriter(randomWrite);
+               localAccess.giveReader(randomRead);
+               localAccess.giveWriter(randomWrite);
                giveLock(hashedIndex, lock);
            }
 
@@ -309,7 +264,7 @@ public class StreamingFileHash {
     
         int hashedIndex = limitedHash * (BUCKET_SIZE); //determine byte index
 
-        final RandomAccessFile randomRead = getReader();
+        final RandomAccessFile randomRead = localAccess.getReader();
 
         final Object lock = getLock(hashedIndex);
         try {
@@ -407,7 +362,7 @@ public class StreamingFileHash {
 
         }
         finally {
-            giveReader(randomRead);
+            localAccess.giveReader(randomRead);
         }
         
     }
@@ -420,8 +375,8 @@ public class StreamingFileHash {
 
         final Object lock = getLock(hashedIndex);
 
-        final RandomAccessFile randomRead = getReader();
-        final RandomAccessFile randomWrite = getWriter();
+        final RandomAccessFile randomRead = localAccess.getReader();
+        final RandomAccessFile randomWrite = localAccess.getWriter();
 
         try {
             synchronized (writeLock) {
@@ -512,8 +467,8 @@ public class StreamingFileHash {
 
         }
         finally {
-            giveReader(randomRead);
-            giveWriter(randomWrite);
+            localAccess.giveReader(randomRead);
+            localAccess.giveWriter(randomWrite);
             giveLock(hashedIndex, lock);
         }
                 
@@ -521,8 +476,8 @@ public class StreamingFileHash {
     
     private void delete(int hashedIndex) throws ReadFailure, WriteFailure {
 
-        final RandomAccessFile randomRead = getReader();
-        final RandomAccessFile randomWrite = getWriter();
+        final RandomAccessFile randomRead = localAccess.getReader();
+        final RandomAccessFile randomWrite = localAccess.getWriter();
 
         final Object lock = getLock(hashedIndex);
 
@@ -568,8 +523,8 @@ public class StreamingFileHash {
 
         }
         finally {
-            giveReader(randomRead);
-            giveWriter(randomWrite);
+            localAccess.giveReader(randomRead);
+            localAccess.giveWriter(randomWrite);
             giveLock(hashedIndex, lock);
         }
 

@@ -35,6 +35,7 @@ public class FileHash {
     private final Map<Long, Object> hashLocks = new ConcurrentHashMap<>();
 
     private final SegmentedBytesDataManager blobManager;
+    private final LocalRandomAccess localAccess;
 
     public FileHash(
         final File file,
@@ -55,6 +56,7 @@ public class FileHash {
         }
 
         this.file = file;
+        this.localAccess = new LocalRandomAccess(file);
 
         //if the file doesn't exist, initialize an empty hash of the desired size
         if(!file.exists()) {
@@ -62,48 +64,6 @@ public class FileHash {
         }
     }
 
-    private final List<RandomAccessFile> readers = new LinkedList<>();
-    private final List<RandomAccessFile> writers = new LinkedList<>();
-
-    private void giveReader(RandomAccessFile reader) {
-        synchronized (readers) {
-            readers.add(reader);
-        }
-    }
-    private RandomAccessFile getReader() {
-        synchronized (readers) {
-            if(readers.size() == 0) {
-                try {
-                    return new RandomAccessFile(file, "r");
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException("hash file isn't working", e);
-                }
-            }
-            else {
-                return readers.removeFirst();
-            }
-        }
-    }
-
-    private void giveWriter(RandomAccessFile reader) {
-        synchronized (writers) {
-            writers.add(reader);
-        }
-    }
-    private RandomAccessFile getWriter() {
-        synchronized (writers) {
-            if(writers.size() == 0) {
-                try {
-                    return new RandomAccessFile(file, "rws");
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException("hash file isn't working", e);
-                }
-            }
-            else {
-                return writers.removeFirst();
-            }
-        }
-    }
 
     private void initFile() {
 
@@ -192,8 +152,8 @@ public class FileHash {
              
         try {
 
-            final RandomAccessFile randomRead = getReader();
-            final RandomAccessFile randomWrite = getWriter();
+            final RandomAccessFile randomRead = localAccess.getReader();
+            final RandomAccessFile randomWrite = localAccess.getWriter();
 
             final Object lock = getLock(hashedIndex);
 
@@ -261,8 +221,8 @@ public class FileHash {
             }
             finally {
 
-                giveReader(randomRead);
-                giveWriter(randomWrite);
+                localAccess.giveReader(randomRead);
+                localAccess.giveWriter(randomWrite);
                 giveLock(hashedIndex, lock);
             }
             
@@ -289,7 +249,7 @@ public class FileHash {
     
         int hashedIndex = limitedHash * (BUCKET_SIZE); //determine byte index
 
-        final RandomAccessFile randomRead = getReader();
+        final RandomAccessFile randomRead = localAccess.getReader();
 
         final Object lock = getLock(hashedIndex);
 
@@ -350,7 +310,7 @@ public class FileHash {
         
         }
         finally {
-            giveReader(randomRead);
+            localAccess.giveReader(randomRead);
             giveLock(hashedIndex, lock);
         }
         
@@ -364,8 +324,8 @@ public class FileHash {
 
         final Object lock = getLock(hashedIndex);
 
-        final RandomAccessFile randomRead = getReader();
-        final RandomAccessFile randomWrite = getWriter();
+        final RandomAccessFile randomRead = localAccess.getReader();
+        final RandomAccessFile randomWrite = localAccess.getWriter();
 
         try {
             synchronized (writeLock) {
@@ -458,8 +418,8 @@ public class FileHash {
         
         }
         finally {
-            giveReader(randomRead);
-            giveWriter(randomWrite);
+            localAccess.giveReader(randomRead);
+            localAccess.giveWriter(randomWrite);
             giveLock(hashedIndex, lock);
         }
                 
@@ -467,8 +427,8 @@ public class FileHash {
     
     private void delete(int hashedIndex) throws ReadFailure, WriteFailure {
 
-        final RandomAccessFile randomRead = getReader();
-        final RandomAccessFile randomWrite = getWriter();
+        final RandomAccessFile randomRead = localAccess.getReader();
+        final RandomAccessFile randomWrite = localAccess.getWriter();
 
         final Object lock = getLock(hashedIndex);
 
@@ -518,8 +478,8 @@ public class FileHash {
         
         }
         finally {
-            giveReader(randomRead);
-            giveWriter(randomWrite);
+            localAccess.giveReader(randomRead);
+            localAccess.giveWriter(randomWrite);
             giveLock(hashedIndex, lock);
         }
 

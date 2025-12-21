@@ -138,7 +138,7 @@ public class CacheCompareTest {
         }
     }
     private final int MULTI_WRITES = 10;
-    private final int MULTI_READS = 1000;
+    private final int MULTI_READS = 10000;
     private final int THREADS = 200;
 
     @Test

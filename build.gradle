@@ -1,5 +1,7 @@
 plugins {
     id 'java'
+    id 'java-library' // or 'java'
+    id 'maven-publish'
 }
 
 group = 'llc.berserkr'
@@ -7,6 +9,8 @@ version = '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
+    mavenLocal()
+    maven { url 'https://jitpack.io' }
 }
 
 dependencies {
@@ -23,4 +27,19 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId = 'llc.berserkr' // Replace with your group ID
+            artifactId = 'java-file-cache' // Replace with your artifact ID
+            version = '1.0.0' // Replace with your version
+
+            from components.java
+        }
+    }
+    repositories {
+        mavenLocal()
+    }
 }

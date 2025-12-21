@@ -18,6 +18,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static llc.berserkr.cache.util.DataUtils.convertInputStreamToBytes;
 import static org.junit.jupiter.api.Assertions.*;
 
 
@@ -64,7 +65,7 @@ public class StreamFileCacheTest {
 	        
 	        cache.put(key, new ByteArrayInputStream(value.getBytes()));
 	        
-	        byte [] baos = SegmentedBytesDataManager.convertInputStreamToBytes(cache.get(key));
+	        byte [] baos = convertInputStreamToBytes(cache.get(key));
 			
 	        returnValue = new String(baos);
 	        
@@ -198,7 +199,7 @@ public class StreamFileCacheTest {
 	        byte [] baos = null;
 	        
 	        for (int i = 0; i < 10; i++) {
-	        	baos = SegmentedBytesDataManager.convertInputStreamToBytes(cache.get(key));
+	        	baos = convertInputStreamToBytes(cache.get(key));
 	        }
 			
 	        returnValue = new String(baos);
@@ -273,7 +274,7 @@ public class StreamFileCacheTest {
                                 cache.put(key, new ByteArrayInputStream(value.getBytes()));
 
                                 for(int j = 0; j < 100; j++) {
-                                    final String returnValue = new String(SegmentedBytesDataManager.convertInputStreamToBytes(cache.get(key)));
+                                    final String returnValue = new String(convertInputStreamToBytes(cache.get(key)));
 
                                     assertEquals(value, returnValue);
                                     assertEquals(cache.exists(key), true);
@@ -407,7 +408,7 @@ public class StreamFileCacheTest {
 		        
 		        cache.put(key, new ByteArrayInputStream(value.getBytes()));
 		        
-		        String returnValue = new String(SegmentedBytesDataManager.convertInputStreamToBytes(cache.get(key)));
+		        String returnValue = new String(convertInputStreamToBytes(cache.get(key)));
 			
 		        logger.debug(returnValue);
 		        logger.debug(value);
@@ -469,7 +470,7 @@ public class StreamFileCacheTest {
 		        
 		        cache.put(key, new ByteArrayInputStream(value.getBytes()));
 		        
-		        String returnValue = new String(SegmentedBytesDataManager.convertInputStreamToBytes(cache.get(key)));
+		        String returnValue = new String(convertInputStreamToBytes(cache.get(key)));
 			
 		        System.out.println(returnValue);
 		        System.out.println(value);
@@ -560,7 +561,7 @@ public class StreamFileCacheTest {
                 
                 cache.put(key, new ByteArrayInputStream(value.getBytes()));
                 
-                String returnValue = new String(SegmentedBytesDataManager.convertInputStreamToBytes(cache.get(key)));
+                String returnValue = new String(convertInputStreamToBytes(cache.get(key)));
                 
                 assertEquals(value, returnValue);
                 assertEquals(cache.exists(key), true);
@@ -626,7 +627,7 @@ public class StreamFileCacheTest {
                 
                 cache.put(key, new ByteArrayInputStream(value.getBytes()));
                 
-                String returnValue = new String(SegmentedBytesDataManager.convertInputStreamToBytes(cache.get(key)));
+                String returnValue = new String(convertInputStreamToBytes(cache.get(key)));
                 
                 assertEquals(value, returnValue);
                 assertEquals(cache.exists(key), true);
@@ -691,7 +692,7 @@ public class StreamFileCacheTest {
                     
                     cache.put(key, new ByteArrayInputStream(value.getBytes()));
                     
-                    String returnValue = new String(SegmentedBytesDataManager.convertInputStreamToBytes(cache.get(key)));
+                    String returnValue = new String(convertInputStreamToBytes(cache.get(key)));
                     
                     assertEquals(value, returnValue);
                     assertEquals(cache.exists(key), true);

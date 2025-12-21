@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static llc.berserkr.cache.util.DataUtils.convertInputStreamToBytes;
 import static org.fest.assertions.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -109,7 +110,7 @@ public class CacheCompareTest {
             for (final Map.Entry<String, String> entry : data.entrySet()) {
 
                 final String keyString = entry.getKey();
-                final String value = new String(SegmentedBytesDataManager.convertInputStreamToBytes(hashCache.get(keyString.getBytes(StandardCharsets.UTF_8))), StandardCharsets.UTF_8);
+                final String value = new String(convertInputStreamToBytes(hashCache.get(keyString.getBytes(StandardCharsets.UTF_8))), StandardCharsets.UTF_8);
 
                 readData.put(keyString, value);
 
@@ -189,7 +190,7 @@ public class CacheCompareTest {
                                     cache.put(key, new ByteArrayInputStream(value.getBytes()));
 
                                     for(int j = 0; j < MULTI_READS; j++) {
-                                        final String returnValue = new String(SegmentedBytesDataManager.convertInputStreamToBytes(cache.get(key)));
+                                        final String returnValue = new String(convertInputStreamToBytes(cache.get(key)));
 
                                         assertEquals(value, returnValue);
                                     }

@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+import static llc.berserkr.cache.hash.SegmentedTransactions.*;
+import static llc.berserkr.cache.util.DataUtils.convertInputStreamToBytes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -105,7 +107,7 @@ public class SegmentedFileTest {
         //read in everything we wrote and store in wasWrote
         for(final long address : addressesUsed) {
 
-            wasWrote.add(SegmentedBytesDataManager.convertInputStreamToBytes(segmentedFile.readSegment(address)));
+            wasWrote.add(convertInputStreamToBytes(segmentedFile.readSegment(address)));
         }
 
         System.out.println("data read : " + wasWrote.size() + " " + (System.currentTimeMillis() - start));
@@ -153,7 +155,7 @@ public class SegmentedFileTest {
 
             final Long addressToRemove = addressesUsed.remove((int) (Math.random() * addressesUsed.size()));
 
-            halfAddresses.put(addressToRemove, SegmentedBytesDataManager.convertInputStreamToBytes(segmentedFile.readSegment(addressToRemove)));
+            halfAddresses.put(addressToRemove, convertInputStreamToBytes(segmentedFile.readSegment(addressToRemove)));
 
         }
 
@@ -256,7 +258,7 @@ public class SegmentedFileTest {
 
         for(final long address : addressesUsed) {
 
-            wasWrote.add(SegmentedBytesDataManager.convertInputStreamToBytes(segmentedFile.readSegment(address)));
+            wasWrote.add(convertInputStreamToBytes(segmentedFile.readSegment(address)));
         }
 
         assertEquals(junkBytes.size(), wasWrote.size());
@@ -281,7 +283,7 @@ public class SegmentedFileTest {
 
             final Long addressToRemove = addressesUsed.remove((int) (Math.random() * addressesUsed.size()));
 
-            halfAddresses.put(addressToRemove, SegmentedBytesDataManager.convertInputStreamToBytes(segmentedFile.readSegment(addressToRemove)));
+            halfAddresses.put(addressToRemove, convertInputStreamToBytes(segmentedFile.readSegment(addressToRemove)));
 
         }
 
@@ -296,7 +298,7 @@ public class SegmentedFileTest {
             //test reversing a write
             final long address = segmentedFile.getFreeSegment(50);
 
-            SegmentedBytesDataManager.startWritingTransaction(segmentedFile, address);
+            startWritingTransaction(segmentedFile, address);
 
             segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
 
@@ -317,7 +319,7 @@ public class SegmentedFileTest {
         {
             final long address = segmentedFile.findEnd();
 
-            SegmentedBytesDataManager.startAddTransaction(segmentedFile, 50);
+            startAddTransaction(segmentedFile, 50);
 
             segmentedFile.validateData();
 
@@ -331,7 +333,7 @@ public class SegmentedFileTest {
 
             final long address = segmentedFile.findEnd();
 
-            SegmentedBytesDataManager.startMergeTransaction(segmentedFile, address, 50);
+            startMergeTransaction(segmentedFile, address, 50);
 
             segmentedFile.validateData();
 

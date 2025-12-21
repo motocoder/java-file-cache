@@ -147,8 +147,8 @@ public class CacheCompareTest {
 
         final ExecutorService pool = Executors.newFixedThreadPool(THREADS);
 
-        final File tempFolder = new File("./target/test-files/temp-data");
-        final File dataFolder = new File("./target/test-files/data");
+        final File tempFolder = new File("./target/test-files/" + UUID.randomUUID().toString() + "temp-data");
+        final File dataFolder = new File("./target/test-files/" + UUID.randomUUID().toString() + "data");
 
         deleteRoot(tempFolder);
         deleteRoot(dataFolder);

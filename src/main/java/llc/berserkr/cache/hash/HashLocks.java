@@ -22,6 +22,8 @@ import org.slf4j.LoggerFactory;
  * and fast.
  *
  * This class handles just the locks for the hash index blobs.
+ *
+ * TODO write this in C
  */
 public class HashLocks {
 
@@ -85,14 +87,14 @@ public class HashLocks {
             switch (lockType) {
                 case READER: {
                     readers--;
-                    writeLocks.notifyAll(); //could change this to only notify single readers or writers if performance hit, needs profiling
+                    writeLocks.notify(); //could change this to only notify single readers or writers if performance hit, needs profiling
                     break;
                 }
 
                 case WRITER: {
                     writers--;
                     writeLocks.releaseLock(); //only write releases global lock
-                    writeLocks.notifyAll(); //could change this to only notify single readers or writers if performance hit, needs profiling
+                    writeLocks.notify(); //could change this to only notify single readers or writers if performance hit, needs profiling
                     break;
                 }
             }

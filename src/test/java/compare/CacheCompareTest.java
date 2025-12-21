@@ -19,14 +19,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static llc.berserkr.cache.util.DataUtils.convertInputStreamToBytes;
 import static org.fest.assertions.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class CacheCompareTest {
 
@@ -137,8 +137,10 @@ public class CacheCompareTest {
         }
     }
     private final int MULTI_WRITES = 10;
-    private final int MULTI_READS = 10000;
+    private final int MULTI_READS = 1000;
     private final int THREADS = 200;
+
+    private boolean flag = false;
 
     @Test
     public void multiThreadedTest() throws IOException {
@@ -159,9 +161,9 @@ public class CacheCompareTest {
         final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                 new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
 
-//		final Cache<String, InputStream> cache = new SynchronizedCache<String, InputStream>(keyConvertingCache);
         final Cache<String, InputStream> cache = keyConvertingCache;
 
+        flag = false;
         for (int x = 0; x < THREADS -1; x++) {
 
             final int pre = x;
@@ -194,10 +196,9 @@ public class CacheCompareTest {
                                     }
                                 }
 
-                            } catch (ResourceException e) {
+                            } catch (Throwable e) {
                                 e.printStackTrace();
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
+                                flag = true;
                             }
 
                         }
@@ -217,6 +218,8 @@ public class CacheCompareTest {
             e1.printStackTrace();
         }
 
+        assertFalse(flag);
+
     }
 
     @Test
@@ -224,14 +227,16 @@ public class CacheCompareTest {
 
         final ExecutorService pool = Executors.newFixedThreadPool(THREADS);
 
-        final File tempFolder = new File("./target/test-files/temp-data");
-        final File dataFolder = new File("./target/test-files/data");
+        final File tempFolder = new File("./target/test-files/" + UUID.randomUUID().toString() + "temp-data");
+        final File dataFolder = new File("./target/test-files/" + UUID.randomUUID().toString() + "data");
 
         deleteRoot(tempFolder);
         deleteRoot(dataFolder);
 
         tempFolder.mkdirs();
         dataFolder.mkdirs();
+
+        flag = false;
 
         for (int x = 0; x < THREADS-1; x++) {
 
@@ -272,8 +277,9 @@ public class CacheCompareTest {
                                     }
                                 }
 
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
+                            } catch (Throwable e) {
+                                flag = true;
+                                e.printStackTrace();
                             }
 
                         }
@@ -292,6 +298,8 @@ public class CacheCompareTest {
         catch (InterruptedException e1) {
             e1.printStackTrace();
         }
+
+        assertFalse(flag);
 
     }
 

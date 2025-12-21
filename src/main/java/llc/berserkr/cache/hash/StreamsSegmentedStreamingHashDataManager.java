@@ -15,8 +15,6 @@ import static llc.berserkr.cache.hash.SegmentedTransactions.*;
  *
  * It also maintains the transaction lifecycle of reads/and writes.
  *
- * TODO modify reading/writing to allow multiple reads async to writes
- * TODO modify the value to be streamable instead of bytes to handle large values (potentially infinite instead of limited by heap size)
  */
 public class StreamsSegmentedStreamingHashDataManager implements SingleValueHashDataManager<byte [], InputStream> {
 
@@ -109,6 +107,11 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
                 throw new RuntimeException("remove when this is proven");
             }
 
+            //splitting requires we take a large segment (address) and turn it into two segments
+            //the split segment is created first, if the crash occurs we just back out and retain one
+            //large segment
+            //after it is complete the last operation is to set the split segment to the new size and
+            //mark it bound to the new data
             final long address = e.getAddress();
             final long splitAddress = address + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + split1;
 
@@ -196,8 +199,6 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
     public void clear() throws WriteFailure, ReadFailure {
         segmentedFile.clear();
     }
-
-
 
     public static int copyAndCount(InputStream inputStream, OutputStream outputStream) throws IOException {
 

@@ -13,6 +13,9 @@ public class SegmentedStreamingFile {
 
     private static final Logger logger = LoggerFactory.getLogger(SegmentedStreamingFile.class);
 
+    //size of the buffer used to write files //TODO make configurable
+    private static final int WRITE_BUFFER_SIZE = 8192;
+
     //bytes at the beginning of each segment to construct into an int for the segment length
     public static final int SEGMENT_LENGTH_BYTES_COUNT = 4;
     private static final int START_OFFSET = 1024; //leave 1024 bytes for use of transactions
@@ -29,10 +32,10 @@ public class SegmentedStreamingFile {
     private final File root;
     private final SegmentReference reference = new SegmentReference();
 
-    private long lastKnownAddress = START_OFFSET;
-    private static final int WRITE_BUFFER_SIZE = 8192;
-
     private final LocalRandomAccess localAccess;
+
+    private long lastKnownAddress = START_OFFSET;
+
     /**
      *
      * File format for a forward linked list of segments that can vary in size and fill.
@@ -530,7 +533,7 @@ public class SegmentedStreamingFile {
                 //free segment lets see if it fits
                 if(segmentState == FREE_STATE) {
 
-                    if(segmentLength > lengthRequired * 2) {
+                    if(segmentLength > lengthRequired * 2) {//TODO make split size configurable.
                         throw new NeedsSplitException(address, segmentLength);
                     }
                     else if(segmentLength >= lengthRequired) {

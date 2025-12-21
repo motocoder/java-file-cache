@@ -396,8 +396,6 @@ public class StreamFileCacheTest {
 		        for (int i = 0; i < x; i++) {
 		        	value = value.concat(value);
 		        	key = key.concat("f");
-		        	
-		        	
 		        }
 		        
 		        logger.info("putting value of length: " + value.length() + " with key of length: " + key.length());
@@ -426,9 +424,6 @@ public class StreamFileCacheTest {
 		}
 		catch (ResourceException e) {
 			e.printStackTrace();
-		} 
-		finally {
-			
 		}
 		
 	}

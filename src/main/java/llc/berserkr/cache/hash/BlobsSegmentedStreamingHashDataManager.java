@@ -18,9 +18,6 @@ import static llc.berserkr.cache.util.DataUtils.*;
  * This class manages putting hashed items into the segmented file.
  *
  * It also maintains the transaction lifecycle of reads/and writes.
- *
- * TODO modify reading/writing to allow multiple reads async to writes
- * TODO modify the value to be streamable instead of bytes to handle large values (potentially infinite instead of limited by heap size)
  */
 public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<byte [], Long> {
 
@@ -132,51 +129,6 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
 
     }
 
-//    public static void startAddTransaction(SegmentedStreamingFile segmentedFile, int length) throws ReadFailure, WriteFailure {
-//
-//        final byte[] lengthBytes = SegmentedStreamingFile.intToByteArray(length);
-//
-//        final byte [] writeTransaction = new byte[] {
-//            SegmentedStreamingFile.ADD_END_TRANSACTION, //if merge fails we will finish the merge but leave it empty
-//            lengthBytes[0],
-//            lengthBytes[1],
-//            lengthBytes[2],
-//            lengthBytes[3]
-//        };
-//
-//        segmentedFile.writeTransactionalBytes(
-//            writeTransaction
-//        );
-//
-//    }
-//
-//    public static void startMergeTransaction(SegmentedStreamingFile segmentedFile, long address, int segmentSize) throws ReadFailure, WriteFailure {
-//
-//        final byte[] addressBytes = SegmentedStreamingFile.longToByteArray(address);
-//        final byte[] lengthBytes = SegmentedStreamingFile.intToByteArray(segmentSize);
-//
-//        final byte [] writeTransaction = new byte[] {
-//                SegmentedStreamingFile.MERGE_TRANSACTION, //if merge fails we will finish the merge but leave it empty
-//                addressBytes[0],
-//                addressBytes[1],
-//                addressBytes[2],
-//                addressBytes[3],
-//                addressBytes[4],
-//                addressBytes[5],
-//                addressBytes[6],
-//                addressBytes[7],
-//                lengthBytes[0],
-//                lengthBytes[1],
-//                lengthBytes[2],
-//                lengthBytes[3]
-//        };
-//
-//        segmentedFile.writeTransactionalBytes(
-//                writeTransaction
-//        );
-//
-//    }
-
     @Override
     public void eraseBlobs(long blobIndex) throws WriteFailure, ReadFailure {
         startWritingTransaction(segmentedFile, blobIndex);
@@ -254,56 +206,5 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
         return pairs;
 
     }
-
-//    public static byte[] charToBytes(char ch) {
-//
-//        // Extract the most significant byte (MSB)
-//        byte msb = (byte) ((ch >> 8) & 0xFF);
-//
-//        // Extract the least significant byte (LSB)
-//        byte lsb = (byte) (ch & 0xFF);
-//
-//        return new byte[] {msb, lsb};
-//
-//    }
-//
-//    public static char bytesToChar(byte[] bytes) {
-//
-//        if(bytes.length != 2) { throw new IllegalArgumentException("bytes must be 2 lenght " + bytes.length); }
-//
-//        final byte byte1 = bytes[0]; // Example: 'A' (most significant byte)
-//        final byte byte2 = bytes[1]; // Example: (least significant byte for 'A' in little-endian UTF-16)
-//
-//        // Combine the two bytes into a short, then cast to char
-//        // Assuming byte1 is the most significant byte and byte2 is the least significant byte
-//        // This order is typical for big-endian systems, or if you're constructing a specific UTF-16 value.
-//        return (char) (((byte1 & 0xFF) << 8) | (byte2 & 0xFF));
-//
-//    }
-//
-//    public static void endTransactions(SegmentedStreamingFile segmentedFile) throws ReadFailure, WriteFailure {
-//        segmentedFile.writeTransactionalBytes(new byte[] {});
-//    }
-//
-//    public static void startWritingTransaction(SegmentedStreamingFile segmentedFile, long address) throws ReadFailure, WriteFailure {
-//
-//        final byte[] addressBytes = SegmentedStreamingFile.longToByteArray(address);
-//        final byte [] writeTransaction = new byte[] {
-//            SegmentedStreamingFile.WRITING_TRANSACTION, //reversal of a write just deletes it anyway
-//            addressBytes[0],
-//            addressBytes[1],
-//            addressBytes[2],
-//            addressBytes[3],
-//            addressBytes[4],
-//            addressBytes[5],
-//            addressBytes[6],
-//            addressBytes[7]
-//        };
-//
-//        segmentedFile.writeTransactionalBytes(
-//                writeTransaction
-//        );
-//
-//    }
 
 }

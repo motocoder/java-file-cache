@@ -1,10 +1,7 @@
 package llc.berserkr.cache.hash;
 
-import llc.berserkr.cache.data.Pair;
 import llc.berserkr.cache.exception.ReadFailure;
 import llc.berserkr.cache.exception.WriteFailure;
-
-import java.util.Set;
 
 public interface SingleValueHashDataManager<Key, Value> {
    

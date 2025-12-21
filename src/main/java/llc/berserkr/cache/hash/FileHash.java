@@ -16,9 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 
  * 
- * this is a file backed hashing mechanism. 
- *
- * TODO make read/write seperated for threading reasons (should be able to read from stuff you aren't writting to while writting to other items)
+ * this is a file backed hashing mechanism.
  *
  * Some of this class was derived from: https://code.google.com/p/jdbm2/ 
  *
@@ -63,7 +61,6 @@ public class FileHash {
             initFile();
         }
     }
-
 
     private void initFile() {
 

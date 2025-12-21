@@ -127,17 +127,6 @@ public class SegmentedFileTest {
         //check what we wrote vs what we read
         for(final byte [] wrote : wasWrote) {
 
-//            for(final byte [] junk : wasWrote) {
-//
-//                if(junk.length != wrote.length) {
-//                    for(int i = 0; i < wrote.length; i++) {
-//                        if(junk[i] != wrote[i]) {
-//                            fail("index " + i + " not right");
-//                        }
-//                    }
-//                }
-//            }
-
             final String wroteString = new String(wrote, StandardCharsets.UTF_8);
 
             if(!junkStrings.contains(wroteString)) {

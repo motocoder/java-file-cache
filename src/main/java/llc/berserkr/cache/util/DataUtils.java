@@ -18,7 +18,6 @@ public class DataUtils {
     private static final Logger logger = LoggerFactory.getLogger(DataUtils.class);
     
     private DataUtils() {
-        
     }
     
     /**

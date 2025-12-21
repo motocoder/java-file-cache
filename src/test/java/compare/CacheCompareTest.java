@@ -4,7 +4,6 @@ import com.jakewharton.disklrucache.DiskLruCache;
 import llc.berserkr.cache.Cache;
 import llc.berserkr.cache.StreamFileCache;
 import llc.berserkr.cache.KeyConvertingCache;
-import llc.berserkr.cache.hash.SegmentedBytesDataManager;
 import llc.berserkr.cache.converter.BytesStringConverter;
 import llc.berserkr.cache.converter.ReverseConverter;
 import llc.berserkr.cache.exception.ResourceException;
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;

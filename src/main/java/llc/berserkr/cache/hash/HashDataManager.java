@@ -1,4 +1,4 @@
-package llc.berserkr.cache;
+package llc.berserkr.cache.hash;
 
 import llc.berserkr.cache.data.Pair;
 import llc.berserkr.cache.exception.ReadFailure;

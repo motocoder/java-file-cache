@@ -33,7 +33,7 @@ public class CacheFactory {
         final File expiringDataFolder = new File(expiringRoot, "data");
         final File expiringTempFolder = new File(expiringRoot, "temp");
 
-        final FileStreamHashCache diskCache = new FileStreamHashCache(dataFolder);
+        final StreamFileCache diskCache = new StreamFileCache(dataFolder);
 
         final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                 new KeyConvertingCache<>(diskCache, new ReverseConverter<>(new BytesStringConverter()));
@@ -47,7 +47,7 @@ public class CacheFactory {
                     new SerializingConverter<Value>()
             );
 
-        final FileStreamHashCache diskCache2 = new FileStreamHashCache(expiringTempFolder);
+        final StreamFileCache diskCache2 = new StreamFileCache(expiringTempFolder);
 
         final KeyConvertingCache<String, byte [], InputStream> expringPersistDiskCache =
                 new KeyConvertingCache<>(diskCache2, new ReverseConverter<>(new BytesStringConverter()));

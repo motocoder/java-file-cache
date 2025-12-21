@@ -1,10 +1,11 @@
 package llc.berserkr.cache;
 
-import com.jakewharton.disklrucache.DiskLruCache;
 import llc.berserkr.cache.exception.OutOfSpaceException;
 import llc.berserkr.cache.exception.ReadFailure;
 import llc.berserkr.cache.exception.SpaceFragementedException;
 import llc.berserkr.cache.exception.WriteFailure;
+import llc.berserkr.cache.hash.SegmentedStreamingFile;
+import llc.berserkr.cache.hash.SegmentedBytesDataManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -104,7 +105,7 @@ public class SegmentedFileTest {
         //read in everything we wrote and store in wasWrote
         for(final long address : addressesUsed) {
 
-            wasWrote.add(SegmentedStreamingHashDataManager.convertInputStreamToBytes(segmentedFile.readSegment(address)));
+            wasWrote.add(SegmentedBytesDataManager.convertInputStreamToBytes(segmentedFile.readSegment(address)));
         }
 
         System.out.println("data read : " + wasWrote.size() + " " + (System.currentTimeMillis() - start));
@@ -152,7 +153,7 @@ public class SegmentedFileTest {
 
             final Long addressToRemove = addressesUsed.remove((int) (Math.random() * addressesUsed.size()));
 
-            halfAddresses.put(addressToRemove, SegmentedStreamingHashDataManager.convertInputStreamToBytes(segmentedFile.readSegment(addressToRemove)));
+            halfAddresses.put(addressToRemove, SegmentedBytesDataManager.convertInputStreamToBytes(segmentedFile.readSegment(addressToRemove)));
 
         }
 
@@ -255,7 +256,7 @@ public class SegmentedFileTest {
 
         for(final long address : addressesUsed) {
 
-            wasWrote.add(SegmentedStreamingHashDataManager.convertInputStreamToBytes(segmentedFile.readSegment(address)));
+            wasWrote.add(SegmentedBytesDataManager.convertInputStreamToBytes(segmentedFile.readSegment(address)));
         }
 
         assertEquals(junkBytes.size(), wasWrote.size());
@@ -280,7 +281,7 @@ public class SegmentedFileTest {
 
             final Long addressToRemove = addressesUsed.remove((int) (Math.random() * addressesUsed.size()));
 
-            halfAddresses.put(addressToRemove, SegmentedStreamingHashDataManager.convertInputStreamToBytes(segmentedFile.readSegment(addressToRemove)));
+            halfAddresses.put(addressToRemove, SegmentedBytesDataManager.convertInputStreamToBytes(segmentedFile.readSegment(addressToRemove)));
 
         }
 
@@ -295,7 +296,7 @@ public class SegmentedFileTest {
             //test reversing a write
             final long address = segmentedFile.getFreeSegment(50);
 
-            SegmentedStreamingHashDataManager.startWritingTransaction(segmentedFile, address);
+            SegmentedBytesDataManager.startWritingTransaction(segmentedFile, address);
 
             segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
 
@@ -316,7 +317,7 @@ public class SegmentedFileTest {
         {
             final long address = segmentedFile.findEnd();
 
-            SegmentedStreamingHashDataManager.startAddTransaction(segmentedFile, 50);
+            SegmentedBytesDataManager.startAddTransaction(segmentedFile, 50);
 
             segmentedFile.validateData();
 
@@ -330,7 +331,7 @@ public class SegmentedFileTest {
 
             final long address = segmentedFile.findEnd();
 
-            SegmentedStreamingHashDataManager.startMergeTransaction(segmentedFile, address, 50);
+            SegmentedBytesDataManager.startMergeTransaction(segmentedFile, address, 50);
 
             segmentedFile.validateData();
 

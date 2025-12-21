@@ -1,4 +1,4 @@
-package llc.berserkr.cache;
+package llc.berserkr.cache.hash;
 
 import llc.berserkr.cache.data.Pair;
 import llc.berserkr.cache.exception.*;
@@ -19,22 +19,21 @@ import java.util.Set;
  * TODO modify reading/writing to allow multiple reads async to writes
  * TODO modify the value to be streamable instead of bytes to handle large values (potentially infinite instead of limited by heap size)
  */
-public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<byte [], Long> {
+public class SegmentedBytesDataManager {
 
-    private static final Logger logger = LoggerFactory.getLogger(BlobsSegmentedStreamingHashDataManager.class);
+    private static final Logger logger = LoggerFactory.getLogger(SegmentedBytesDataManager.class);
 
     private final SegmentedStreamingFile segmentedFile;
 
-    public BlobsSegmentedStreamingHashDataManager(File segmentFile) {
+    public SegmentedBytesDataManager(File segmentFile) {
         this.segmentedFile = new SegmentedStreamingFile(segmentFile);
     }
 
-    @Override
-    public Set<Pair<byte[], Long>> getBlobsAt(long blobIndex) throws ReadFailure {
+    public Set<Pair<byte[], byte[]>> getBlobsAt(long blobIndex) throws ReadFailure {
 
         final byte[] segment;
         try {
-            segment = SegmentedStreamingHashDataManager.convertInputStreamToBytes(segmentedFile.readSegment(blobIndex));
+            segment = convertInputStreamToBytes(segmentedFile.readSegment(blobIndex));
         } catch (IOException e) {
             throw new ReadFailure("failed", e);
         }
@@ -42,8 +41,7 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
         return getSegmentPairs(segment);
     }
 
-    @Override
-    public long setBlobs(long blobIndex, Set<Pair<byte[], Long>> blobs) throws WriteFailure, ReadFailure {
+    public long setBlobs(long blobIndex, Set<Pair<byte[], byte[]>> blobs) throws WriteFailure, ReadFailure {
 
         if(blobIndex >= 0) {
 
@@ -174,7 +172,6 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
 
     }
 
-    @Override
     public void eraseBlobs(long blobIndex) throws WriteFailure, ReadFailure {
         startWritingTransaction(segmentedFile, blobIndex);
 
@@ -184,14 +181,13 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
         endTransactions(segmentedFile);
     }
 
-    @Override
     public void clear() throws WriteFailure, ReadFailure {
         segmentedFile.clear();
     }
 
-    public static byte [] getPairData(Set<Pair<byte [], Long>> pairsIn) {
+    public static byte [] getPairData(Set<Pair<byte [], byte []>> pairsIn) {
 
-        final List<Pair<byte [], Long>> pairs = new ArrayList<>(pairsIn);//ordered
+        final List<Pair<byte [], byte []>> pairs = new ArrayList<>(pairsIn);//ordered
 
         char count = (char) pairs.size();
 
@@ -203,12 +199,12 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
 
             for(int i = 0; i < count; i++) {
 
-                final Pair<byte [], Long> pair = pairs.get(i);
+                final Pair<byte [], byte []> pair = pairs.get(i);
 
-                out.write(SegmentedStreamingFile.intToByteArray(pair.getOne().length + 8));
+                out.write(SegmentedStreamingFile.intToByteArray(pair.getOne().length + pair.getTwo().length));
                 out.write(SegmentedStreamingFile.intToByteArray(pair.getOne().length));
                 out.write(pair.getOne());
-                out.write(SegmentedStreamingFile.longToByteArray(pair.getTwo()));
+                out.write(pair.getTwo());
 
             }
 
@@ -220,9 +216,9 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
 
     }
 
-    public static Set<Pair<byte [], Long>> getSegmentPairs(byte [] data) {
+    public static Set<Pair<byte [], byte []>> getSegmentPairs(byte [] data) {
 
-        final Set<Pair<byte [], Long>> pairs = new HashSet<>();
+        final Set<Pair<byte [], byte []>> pairs = new HashSet<>();
 
         if(data == null || data.length == 0) { //this shouldn't happen unless data got corrupted and blown away
             return pairs;
@@ -245,7 +241,7 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
 
             dataBase += pairLength + 8;
 
-            pairs.add(new Pair<>(keyData, SegmentedStreamingFile.bytesToLong(payloadData)));
+            pairs.add(new Pair<>(keyData, payloadData));
         }
 
         return pairs;
@@ -301,6 +297,20 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
                 writeTransaction
         );
 
+    }
+
+    public static byte[] convertInputStreamToBytes(InputStream inputStream) throws IOException {
+
+        if(inputStream == null) {
+            return null;
+        }
+
+        try { // Automatic resource management (try-with-resources) closes the stream
+            return inputStream.readAllBytes();
+        }
+        finally {
+            inputStream.close();
+        }
     }
 
 }

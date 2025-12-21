@@ -1,4 +1,4 @@
-package llc.berserkr.cache;
+package llc.berserkr.cache.hash;
 
 import llc.berserkr.cache.exception.*;
 import org.slf4j.Logger;
@@ -7,9 +7,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.function.Consumer;
 
 public class SegmentedStreamingFile {
 

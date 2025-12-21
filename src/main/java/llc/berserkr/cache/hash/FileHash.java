@@ -1,4 +1,4 @@
-package llc.berserkr.cache;
+package llc.berserkr.cache.hash;
 
 
 import llc.berserkr.cache.data.Pair;
@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Some of this class was derived from: https://code.google.com/p/jdbm2/ 
  *
  * **/
-public abstract class FileHash<Key, Value> {
+public class FileHash {
     
     private static final Logger logger = LoggerFactory.getLogger(FileHash.class);
 
@@ -34,15 +34,15 @@ public abstract class FileHash<Key, Value> {
 
     private final Map<Long, Object> hashLocks = new ConcurrentHashMap<>();
 
-    private final HashDataManager<Key, Value> blobManager;
-//    private final RandomAccessFile randomRead;
-//    private final RandomAccessFile randomWrite;
+    private final SegmentedBytesDataManager blobManager;
 
     public FileHash(
         final File file,
-        final HashDataManager<Key, Value> blobManager,
+        final File dataFile,
         final int hashSize
     ) {
+
+        this.blobManager = new SegmentedBytesDataManager(dataFile);
         
         this.hashSize = hashSize;
         
@@ -53,8 +53,7 @@ public abstract class FileHash<Key, Value> {
         for(long i = 0; i < hashSize; i++) {
             hashLocks.put(i * (BUCKET_SIZE), new Object());
         }
-        
-        this.blobManager = blobManager;        
+
         this.file = file;
 
         //if the file doesn't exist, initialize an empty hash of the desired size
@@ -183,8 +182,8 @@ public abstract class FileHash<Key, Value> {
      * @param blob
      */
     public void put(
-      final Key key,
-      final Value blob
+      final byte [] key,
+      final byte [] blob
     ) throws ReadFailure, WriteFailure {
         
         final long limitedHash = Math.abs(hashCode(key)) % hashSize; //limit the hash size to our hash
@@ -214,12 +213,12 @@ public abstract class FileHash<Key, Value> {
 
                    final long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
 
-                   final Set<Pair<Key, Value>> toWrite = new HashSet<>();
+                   final Set<Pair<byte [], byte []>> toWrite = new HashSet<>();
 
                    if(blobIndex >= 0) {
 
                        //if there is already something hashed here, retrieve the hash bucket and add to it
-                       final Set<Pair<Key, Value>> blobs = blobManager.getBlobsAt(blobIndex);
+                       final Set<Pair<byte [], byte []>> blobs = blobManager.getBlobsAt(blobIndex);
 
                        if(blobs != null) {
                            toWrite.addAll(blobs);
@@ -228,9 +227,9 @@ public abstract class FileHash<Key, Value> {
                    }
 
                    //if this key was already in the bucket remove it.
-                   Pair<Key, Value> remove = null;
+                   Pair<byte [], byte []> remove = null;
 
-                   for(final Pair<Key, Value> entry : toWrite) {
+                   for(final Pair<byte [], byte []> entry : toWrite) {
 
                        if(equals(entry.getOne(), key)) {
                            remove = entry;
@@ -282,8 +281,8 @@ public abstract class FileHash<Key, Value> {
             
     }
     
-    public Value get(
-      final Key key
+    public byte [] get(
+      final byte [] key
     ) throws ReadFailure {
       
         final int limitedHash = Math.abs(hashCode(key)) % hashSize; //limit the hash to our hash size
@@ -309,19 +308,19 @@ public abstract class FileHash<Key, Value> {
             //convert the values read into an index
             long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
 
-            Value returnVal = null;
+            byte [] returnVal = null;
 
             if(blobIndex >= 0) {
 
                 //if there is values on this hash
-                final Set<Pair<Key, Value>> blobs = blobManager.getBlobsAt(blobIndex);
+                final Set<Pair<byte [], byte []>> blobs = blobManager.getBlobsAt(blobIndex);
 
                 if(blobs == null) { //data corrupt lets remove our reference.
                     throw new ReadFailure("there should have been blobs at blobIndex");
                 }
                 else {
 
-                    for(Pair<Key, Value> blob : blobs) {
+                    for(Pair<byte [], byte []> blob : blobs) {
 
                         if(equals(blob.getOne(), key)) {
 
@@ -357,7 +356,7 @@ public abstract class FileHash<Key, Value> {
         
     }
 
-    public void remove(Key key) throws ReadFailure, WriteFailure {
+    public void remove(byte [] key) throws ReadFailure, WriteFailure {
                 
         final long limitedHash = Math.abs(hashCode(key)) % hashSize; //limit the hash size
         
@@ -387,9 +386,9 @@ public abstract class FileHash<Key, Value> {
                 //if there is a value on this hash, retrieve its value
                 if (blobIndex >= 0) {
 
-                    Pair<Key, Value> removing = null;
+                    Pair<byte [], byte []> removing = null;
 
-                    final Set<Pair<Key, Value>> blobs = blobManager.getBlobsAt(blobIndex);
+                    final Set<Pair<byte [], byte []>> blobs = blobManager.getBlobsAt(blobIndex);
 
                     if (blobs == null) { //data corrupt lets remove our reference.
 
@@ -400,7 +399,7 @@ public abstract class FileHash<Key, Value> {
 
                     } else {
 
-                        for (Pair<Key, Value> blob : blobs) {
+                        for (Pair<byte [], byte []> blob : blobs) {
 
                             if (equals(blob.getOne(), key)) {
 
@@ -551,7 +550,11 @@ public abstract class FileHash<Key, Value> {
         
     }
 
-    public abstract int hashCode(Key key);
-    public abstract boolean equals(Key key1, Key key2);
-    
+    public int hashCode(byte[] bytes) {
+        return Arrays.hashCode(bytes);
+    }
+
+    public boolean equals(byte[] key1, byte[] key2) {
+        return Arrays.equals(key1, key2);
+    }
 }

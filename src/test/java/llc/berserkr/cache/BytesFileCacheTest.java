@@ -2,6 +2,7 @@ package llc.berserkr.cache;
 
 import llc.berserkr.cache.converter.*;
 import llc.berserkr.cache.exception.ResourceException;
+import llc.berserkr.cache.hash.SegmentedBytesDataManager;
 import llc.berserkr.cache.util.StreamUtil;
 import llc.berserkr.cache.util.StringUtilities;
 import org.apache.log4j.BasicConfigurator;
@@ -20,9 +21,9 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 
-public class FileHashCacheTest {
+public class BytesFileCacheTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(FileHashCacheTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(BytesFileCacheTest.class);
     
     static {
     	BasicConfigurator.configure();
@@ -44,12 +45,12 @@ public class FileHashCacheTest {
 	        tempFolder.mkdirs();
 	        dataFolder.mkdirs();
 
-            final Cache<byte [], InputStream> fileCache = new FileStreamHashCache(dataFolderItem);
+            final Cache<byte [], byte []> fileCache = new BytesFileCache(dataFolderItem);
 
-            final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
-                    new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
+            final KeyConvertingCache<String, byte [], byte[]> keyConvertingCache =
+                    new KeyConvertingCache<String, byte[], byte[]>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
 
-            final Cache<String, InputStream> cache = new SynchronizedCache<String, InputStream>(keyConvertingCache);
+            final Cache<String, byte[]> cache = new SynchronizedCache<String, byte[]>(keyConvertingCache);
 
 
             final String key = "dtsffffdfsjhgjnvdfsddfssdffsdfewfeasdf";
@@ -61,9 +62,9 @@ public class FileHashCacheTest {
 	        
 	        // TEST PUT, GET, REMOVE, and EXISTS
 	        
-	        cache.put(key, new ByteArrayInputStream(value.getBytes()));
+	        cache.put(key, value.getBytes());
 	        
-	        byte [] baos = SegmentedStreamingHashDataManager.convertInputStreamToBytes(cache.get(key));
+	        byte [] baos = cache.get(key);
 			
 	        returnValue = new String(baos);
 	        
@@ -82,16 +83,15 @@ public class FileHashCacheTest {
 	        keyList.add(key3);
 	        keyList.add(key2);
 	        
-	        cache.put(key3, new ByteArrayInputStream(value.getBytes()));
-	        cache.put(key2, new ByteArrayInputStream(value2.getBytes()));
+	        cache.put(key3, value.getBytes());
+	        cache.put(key2, value2.getBytes());
 
 	        Thread.sleep(500);
 	        
 	        assertEquals(true, cache.exists(key3));
 
-            final InputStream read = cache.get(key2);
+            final byte[] read = cache.get(key2);
 	        assertNotNull(read);
-            read.close();
 	        assertEquals(true, cache.exists(key2));
 
 	        cache.clear();
@@ -165,12 +165,12 @@ public class FileHashCacheTest {
 	        tempFolder.mkdirs();
 	        dataFolder.mkdirs();
 
-            final Cache<byte [], InputStream> fileCache = new FileStreamHashCache(dataFolder);
+            final Cache<byte [], byte[]> fileCache = new BytesFileCache(dataFolder);
 
-            final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
-                    new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
+            final KeyConvertingCache<String, byte [], byte[]> keyConvertingCache =
+                    new KeyConvertingCache<String, byte[], byte[]>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
 
-            final Cache<String, InputStream> cache = new SynchronizedCache<String, InputStream>(keyConvertingCache);
+            final Cache<String, byte[]> cache = new SynchronizedCache<String, byte[]>(keyConvertingCache);
 
 
             // create very long string by concatenation
@@ -191,13 +191,13 @@ public class FileHashCacheTest {
 	        // TEST PUT, GET, REMOVE, and EXISTS
 	        
 	        for (int i = 0; i < 10; i++) {
-	        	cache.put(key, new ByteArrayInputStream(value.getBytes()));
+	        	cache.put(key, value.getBytes());
 	        }
 	        
 	        byte [] baos = null;
 	        
 	        for (int i = 0; i < 10; i++) {
-	        	baos = SegmentedStreamingHashDataManager.convertInputStreamToBytes(cache.get(key));
+	        	baos = cache.get(key);
 	        }
 			
 	        returnValue = new String(baos);
@@ -238,13 +238,13 @@ public class FileHashCacheTest {
         tempFolder.mkdirs();
         dataFolder.mkdirs();
         
-        final Cache<byte [], InputStream> fileCache = new FileStreamHashCache(dataFolder);
+        final Cache<byte [], byte[]> fileCache = new BytesFileCache(dataFolder);
 
-        final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
-                new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
+        final KeyConvertingCache<String, byte [], byte[]> keyConvertingCache =
+                new KeyConvertingCache<String, byte[], byte[]>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
 
 //		final Cache<String, InputStream> cache = new SynchronizedCache<String, InputStream>(keyConvertingCache);
-        final Cache<String, InputStream> cache = keyConvertingCache;
+        final Cache<String, byte[]> cache = keyConvertingCache;
 		
 		for (int x = 0; x < 99; x++) {
 
@@ -269,10 +269,10 @@ public class FileHashCacheTest {
 					        // TEST PUT, GET, REMOVE, and EXISTS
 
                             for(int i = 0; i < 10; i++) {
-                                cache.put(key, new ByteArrayInputStream(value.getBytes()));
+                                cache.put(key, value.getBytes());
 
                                 for(int j = 0; j < 100; j++) {
-                                    final String returnValue = new String(SegmentedStreamingHashDataManager.convertInputStreamToBytes(cache.get(key)));
+                                    final String returnValue = new String(cache.get(key));
 
                                     assertEquals(value, returnValue);
                                     assertEquals(cache.exists(key), true);
@@ -281,9 +281,7 @@ public class FileHashCacheTest {
 					        
 						} catch (ResourceException e) {
 							e.printStackTrace();
-						} catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
+						}
 
                     }
                     
@@ -318,15 +316,15 @@ public class FileHashCacheTest {
 			final File dataFolder = new File(root2, "data");
 	        final File persistingFolder = new File(root2, "persisting");
 
-            final Cache<byte [], InputStream> fileCacheStream = new FileStreamHashCache(dataFolder);
+            final Cache<byte [], byte []> fileCacheStream = new BytesFileCache(dataFolder);
 
-            final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
-                    new KeyConvertingCache<String, byte[], InputStream>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
+            final KeyConvertingCache<String, byte [], byte []> keyConvertingCache =
+                    new KeyConvertingCache<String, byte[], byte []>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
 
             Cache<String, String> fileCache =
-				new ValueConvertingCache<String, String, InputStream>(
+				new ValueConvertingCache<String, String, byte []>(
                         keyConvertingCache,
-						new ReverseConverter<>(new InputStreamStringConverter())
+						new ReverseConverter<>(new BytesStringConverter())
 					);
 				
 			Cache<String, String> cache =
@@ -380,12 +378,12 @@ public class FileHashCacheTest {
 		        deleteRoot(tempFolder);
 		        deleteRoot(dataFolder);
 
-                final Cache<byte [], InputStream> fileCacheStream = new FileStreamHashCache(dataFolder);
+                final Cache<byte [], byte []> fileCacheStream = new BytesFileCache(dataFolder);
 
-                final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
-                        new KeyConvertingCache<String, byte[], InputStream>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
+                final KeyConvertingCache<String, byte [], byte []> keyConvertingCache =
+                        new KeyConvertingCache<String, byte[], byte []>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
 
-				final Cache<String, InputStream> cache = new SynchronizedCache<>(keyConvertingCache);
+				final Cache<String, byte []> cache = new SynchronizedCache<>(keyConvertingCache);
 				
 		        // create varying length strings by concatenation
 		        String key = "abcdef0123456789";
@@ -404,9 +402,9 @@ public class FileHashCacheTest {
 		        
 		        logger.debug("writting value " + value.getBytes().length);
 		        
-		        cache.put(key, new ByteArrayInputStream(value.getBytes()));
+		        cache.put(key, value.getBytes());
 		        
-		        String returnValue = new String(SegmentedStreamingHashDataManager.convertInputStreamToBytes(cache.get(key)));
+		        String returnValue = new String(cache.get(key));
 			
 		        logger.debug(returnValue);
 		        logger.debug(value);
@@ -446,12 +444,12 @@ public class FileHashCacheTest {
 		        deleteRoot(tempFolder);
 		        deleteRoot(dataFolder);
 
-                final Cache<byte [], InputStream> fileCacheStream = new FileStreamHashCache(dataFolder);
+                final Cache<byte [], byte []> fileCacheStream = new BytesFileCache(dataFolder);
 
-                final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
-                        new KeyConvertingCache<String, byte[], InputStream>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
+                final KeyConvertingCache<String, byte [], byte []> keyConvertingCache =
+                        new KeyConvertingCache<String, byte[], byte []>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
 
-				final Cache<String, InputStream> cache = new SynchronizedCache<>(keyConvertingCache);
+				final Cache<String, byte []> cache = new SynchronizedCache<>(keyConvertingCache);
 				
 		        // create varying length strings by concatenation
 		        String key = "abcdef0123456789";
@@ -466,9 +464,9 @@ public class FileHashCacheTest {
 		        
 		        // TEST PUT, GET, REMOVE, and EXISTS
 		        
-		        cache.put(key, new ByteArrayInputStream(value.getBytes()));
+		        cache.put(key, value.getBytes());
 		        
-		        String returnValue = new String(SegmentedStreamingHashDataManager.convertInputStreamToBytes(cache.get(key)));
+		        String returnValue = new String(cache.get(key));
 			
 		        System.out.println(returnValue);
 		        System.out.println(value);
@@ -510,18 +508,18 @@ public class FileHashCacheTest {
             tempFolder.mkdirs();
             dataFolder.mkdirs();
 
-            final Cache<byte [], InputStream> fileCacheStream = new FileStreamHashCache(dataFolder);
+            final Cache<byte [], byte []> fileCacheStream = new BytesFileCache(dataFolder);
 
-            final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
-                    new KeyConvertingCache<String, byte[], InputStream>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
+            final KeyConvertingCache<String, byte [], byte []> keyConvertingCache =
+                    new KeyConvertingCache<String, byte[], byte []>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
 
             Cache<String, String> fileCache =
-                new ValueConvertingCache<String, String, InputStream>(
+                new ValueConvertingCache<String, String, byte []>(
                     keyConvertingCache,
-                    new ReverseConverter<>(new InputStreamStringConverter())
+                    new ReverseConverter<>(new BytesStringConverter())
                 );
 
-            final Cache<String, InputStream> cache = new SynchronizedCache<>(keyConvertingCache);
+            final Cache<String, byte []> cache = new SynchronizedCache<>(keyConvertingCache);
             
             // create varying length strings by concatenation
             final String keyOrig = "abcdef0123456789";
@@ -553,9 +551,9 @@ public class FileHashCacheTest {
                 final String value = StringUtilities.repeat(valueOrig, random);
                 final String key = StringUtilities.repeat(keyOrig, random);
                 
-                cache.put(key, new ByteArrayInputStream(value.getBytes()));
+                cache.put(key, value.getBytes());
                 
-                String returnValue = new String(SegmentedStreamingHashDataManager.convertInputStreamToBytes(cache.get(key)));
+                String returnValue = new String(cache.get(key));
                 
                 assertEquals(value, returnValue);
                 assertEquals(cache.exists(key), true);
@@ -580,12 +578,12 @@ public class FileHashCacheTest {
             final File dataFolder = new File("./target/test-files/data-fileSizeTest");
             final File dataFolderItem = new File("./target/test-files/data-fileSizeTest/data");
 
-            final Cache<byte [], InputStream> fileCacheStream = new FileStreamHashCache(dataFolder);
+            final Cache<byte [], byte []> fileCacheStream = new BytesFileCache(dataFolder);
 
-            final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
-                    new KeyConvertingCache<String, byte[], InputStream>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
+            final KeyConvertingCache<String, byte [], byte []> keyConvertingCache =
+                    new KeyConvertingCache<String, byte[], byte []>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
 
-            final Cache<String, InputStream> cache = new SynchronizedCache<>(keyConvertingCache);
+            final Cache<String, byte []> cache = new SynchronizedCache<>(keyConvertingCache);
             
             // create varying length strings by concatenation
             final String keyOrig = "abcdef0123456789";
@@ -617,9 +615,9 @@ public class FileHashCacheTest {
                 final String value = StringUtilities.repeat(valueOrig, random);
                 final String key = StringUtilities.repeat(keyOrig, random);
                 
-                cache.put(key, new ByteArrayInputStream(value.getBytes()));
+                cache.put(key, value.getBytes());
                 
-                String returnValue = new String(SegmentedStreamingHashDataManager.convertInputStreamToBytes(cache.get(key)));
+                String returnValue = new String(cache.get(key));
                 
                 assertEquals(value, returnValue);
                 assertEquals(cache.exists(key), true);
@@ -653,12 +651,12 @@ public class FileHashCacheTest {
             tempFolder.mkdirs();
             dataFolder.mkdirs();
 
-            final Cache<byte [], InputStream> fileCacheStream = new FileStreamHashCache(dataFolder);
+            final Cache<byte [], byte []> fileCacheStream = new BytesFileCache(dataFolder);
 
-            final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
-                    new KeyConvertingCache<String, byte[], InputStream>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
+            final KeyConvertingCache<String, byte [], byte []> keyConvertingCache =
+                    new KeyConvertingCache<String, byte[], byte []>(fileCacheStream, new ReverseConverter<>(new BytesStringConverter()));
 
-            final Cache<String, InputStream> cache = new SynchronizedCache<>(keyConvertingCache);
+            final Cache<String, byte []> cache = new SynchronizedCache<>(keyConvertingCache);
             
             // create varying length strings by concatenation
             final String keyOrig = "abcdef0123456789";
@@ -678,9 +676,9 @@ public class FileHashCacheTest {
                     final String value = StringUtilities.repeat(valueOrig, random);
                     final String key = StringUtilities.repeat(keyOrig, random);
                     
-                    cache.put(key, new ByteArrayInputStream(value.getBytes()));
+                    cache.put(key, value.getBytes());
                     
-                    String returnValue = new String(SegmentedStreamingHashDataManager.convertInputStreamToBytes(cache.get(key)));
+                    String returnValue = new String(cache.get(key));
                     
                     assertEquals(value, returnValue);
                     assertEquals(cache.exists(key), true);

@@ -3,28 +3,27 @@ package llc.berserkr.cache;
 import llc.berserkr.cache.exception.ReadFailure;
 import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.exception.WriteFailure;
+import llc.berserkr.cache.hash.FileHash;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Arrays;
 import java.util.List;
 
-public class BytesFileHashCache implements Cache<byte [], byte []> {
+public class BytesFileCache implements Cache<byte [], byte []> {
 
-    private static final Logger logger = LoggerFactory.getLogger(BytesFileHashCache.class);
+    private static final Logger logger = LoggerFactory.getLogger(BytesFileCache.class);
 
-    private final FileHash<byte [], byte []> hash;
+    private final FileHash hash;
 
-    public BytesFileHashCache(
+    public BytesFileCache(
         final File dataFolder
     ) throws IOException {
         this(dataFolder, 10000);
     }
 
-    public BytesFileHashCache(
+    public BytesFileCache(
         final File dataFolder,
         final int hashSize
     ) throws IOException {
@@ -38,18 +37,7 @@ public class BytesFileHashCache implements Cache<byte [], byte []> {
         final File hashFile = new File(dataFolder, "hash");
         final File segmentFile = new File(dataFolder, "segments");
 
-        hash = new FileHash<>(hashFile, new SegmentedStreamingHashDataManager(segmentFile), hashSize) {
-
-            @Override
-            public int hashCode(byte[] bytes) {
-                return Arrays.hashCode(bytes);
-            }
-
-            @Override
-            public boolean equals(byte[] key1, byte[] key2) {
-                return Arrays.equals(key1, key2);
-            }
-        };
+        hash = new FileHash(hashFile, segmentFile, hashSize);
 
     }
     @Override
@@ -104,9 +92,7 @@ public class BytesFileHashCache implements Cache<byte [], byte []> {
     public void put(byte [] key, byte [] value) throws ResourceException {
         
         try {
-            
             hash.put(key, value);
-            
         }
         catch (ReadFailure | WriteFailure e) {
             throw new ResourceException("failure", e);

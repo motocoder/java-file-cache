@@ -1,4 +1,4 @@
-package llc.berserkr.cache;
+package llc.berserkr.cache.hash;
 
 
 import llc.berserkr.cache.data.Pair;
@@ -35,8 +35,7 @@ public class StreamingFileHash {
     private final Map<Long, Object> hashLocks = new ConcurrentHashMap<>();
 
     private final BlobsSegmentedStreamingHashDataManager blobManager;
-//    private final RandomAccessFile randomRead;
-//    private final RandomAccessFile randomWrite;
+
     private final StreamsSegmentedStreamingHashDataManager dataManager;
     private final File tempDirectory;
 
@@ -578,8 +577,7 @@ public class StreamingFileHash {
     }
 
     public void clear() throws ReadFailure, WriteFailure {
-        
-        //TODO make bulk delete
+
         try {
             for (int i = 0; i < hashSize; i++) {
                 delete(i * (BUCKET_SIZE));

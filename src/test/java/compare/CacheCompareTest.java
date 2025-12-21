@@ -2,9 +2,9 @@ package compare;
 
 import com.jakewharton.disklrucache.DiskLruCache;
 import llc.berserkr.cache.Cache;
-import llc.berserkr.cache.FileStreamHashCache;
+import llc.berserkr.cache.StreamFileCache;
 import llc.berserkr.cache.KeyConvertingCache;
-import llc.berserkr.cache.SegmentedStreamingHashDataManager;
+import llc.berserkr.cache.hash.SegmentedBytesDataManager;
 import llc.berserkr.cache.converter.BytesStringConverter;
 import llc.berserkr.cache.converter.ReverseConverter;
 import llc.berserkr.cache.exception.ResourceException;
@@ -87,7 +87,7 @@ public class CacheCompareTest {
     @Test
     public void test() throws IOException, ResourceException, InterruptedException {
 
-        final FileStreamHashCache hashCache = new FileStreamHashCache(hashCacheDir, TEST_SIZE * 2);
+        final StreamFileCache hashCache = new StreamFileCache(hashCacheDir, TEST_SIZE * 2);
 
         final Map<String, String> data = new HashMap<>();
 
@@ -109,7 +109,7 @@ public class CacheCompareTest {
             for (final Map.Entry<String, String> entry : data.entrySet()) {
 
                 final String keyString = entry.getKey();
-                final String value = new String(SegmentedStreamingHashDataManager.convertInputStreamToBytes(hashCache.get(keyString.getBytes(StandardCharsets.UTF_8))), StandardCharsets.UTF_8);
+                final String value = new String(SegmentedBytesDataManager.convertInputStreamToBytes(hashCache.get(keyString.getBytes(StandardCharsets.UTF_8))), StandardCharsets.UTF_8);
 
                 readData.put(keyString, value);
 
@@ -155,7 +155,7 @@ public class CacheCompareTest {
         tempFolder.mkdirs();
         dataFolder.mkdirs();
 
-        final Cache<byte [], InputStream> fileCache = new FileStreamHashCache(dataFolder);
+        final Cache<byte [], InputStream> fileCache = new StreamFileCache(dataFolder);
 
         final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
                 new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
@@ -189,7 +189,7 @@ public class CacheCompareTest {
                                     cache.put(key, new ByteArrayInputStream(value.getBytes()));
 
                                     for(int j = 0; j < MULTI_READS; j++) {
-                                        final String returnValue = new String(SegmentedStreamingHashDataManager.convertInputStreamToBytes(cache.get(key)));
+                                        final String returnValue = new String(SegmentedBytesDataManager.convertInputStreamToBytes(cache.get(key)));
 
                                         assertEquals(value, returnValue);
                                     }

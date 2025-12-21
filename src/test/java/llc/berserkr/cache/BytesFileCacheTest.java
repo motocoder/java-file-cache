@@ -307,7 +307,7 @@ public class BytesFileCacheTest {
 		
 		try {
 	        
-			File root2 = new File("./target/test-files/temp/");
+			File root2 = new File("./target/test-files/temp-extra/");
 			
 			deleteRoot(root2);
 			

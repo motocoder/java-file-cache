@@ -33,7 +33,6 @@ public class StreamingFileHash {
     private final Map<Long, Object> hashLocks = new ConcurrentHashMap<>();
 
     private final BlobsSegmentedStreamingHashDataManager blobManager;
-
     private final StreamsSegmentedStreamingHashDataManager dataManager;
     private final LocalRandomAccess localAccess;
 
@@ -473,7 +472,7 @@ public class StreamingFileHash {
         }
                 
     }
-    
+
     private void delete(int hashedIndex) throws ReadFailure, WriteFailure {
 
         final RandomAccessFile randomRead = localAccess.getReader();
@@ -499,6 +498,13 @@ public class StreamingFileHash {
 
                 //if there is a value on this hash, retrieve its value
                 if (blobIndex >= 0) {
+
+                    final Set<Pair<byte[], Long>> blobs = blobManager.getBlobsAt(blobIndex);
+
+                    //delete all the data mapped to this index.
+                    for(Pair<byte[], Long> blob : blobs) {
+                        dataManager.eraseBlobs(blob.getTwo());
+                    }
 
                     blobManager.eraseBlobs(blobIndex);
 

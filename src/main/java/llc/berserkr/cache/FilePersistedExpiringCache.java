@@ -7,6 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.*;
 
 /**
@@ -15,8 +17,6 @@ import java.util.*;
  * TODO this class really has an issue with large and numerous keys. It will degrade performance with O(N)
  * @author Sean Wagner
  *
- * @param <Key>
- * @param <Value>
  */
 public class FilePersistedExpiringCache<Value> implements Cache<String, Value>{
     
@@ -58,11 +58,11 @@ public class FilePersistedExpiringCache<Value> implements Cache<String, Value>{
         
         try {
             
-        	LinkedList<Pair<String, Long>> lastUpdated;
+        	LinkedList<SerializingPair<String, Long>> lastUpdated;
             
             if(persisting.get(LAST_UPDATED_KEY) == null) {
                 
-                lastUpdated = new LinkedList<Pair<String, Long>>();
+                lastUpdated = new LinkedList<SerializingPair<String, Long>>();
                 persisting.put(LAST_UPDATED_KEY, DataUtils.serialize(lastUpdated));
                 
             } else {
@@ -137,7 +137,7 @@ public class FilePersistedExpiringCache<Value> implements Cache<String, Value>{
             
         }
         else { //cleanup was performed in this cycle we don't need to check again.
-            returnVal = internal.get(key) != null;
+            returnVal = internal.exists(key);
         }
         
         return returnVal;
@@ -313,7 +313,7 @@ public class FilePersistedExpiringCache<Value> implements Cache<String, Value>{
         this.internal.clear();
         this.persisting.clear();
         
-        final LinkedList<Pair<String, Long>> lastUpdated = new LinkedList<Pair<String, Long>>();
+        final LinkedList<SerializingPair<String, Long>> lastUpdated = new LinkedList<SerializingPair<String, Long>>();
         
         try {
             persisting.put(LAST_UPDATED_KEY, DataUtils.serialize(lastUpdated));
@@ -337,11 +337,11 @@ public class FilePersistedExpiringCache<Value> implements Cache<String, Value>{
         
         try {
         
-            final LinkedList<Pair<String, Long>> lastUpdated = DataUtils.deserialize(persisting.get(LAST_UPDATED_KEY));
+            final LinkedList<SerializingPair<String, Long>> lastUpdated = DataUtils.deserialize(persisting.get(LAST_UPDATED_KEY));
             
-            final Set<Pair<String, Long>> toRemove = new HashSet<Pair<String, Long>>();
+            final Set<SerializingPair<String, Long>> toRemove = new HashSet<SerializingPair<String, Long>>();
             
-            for(final Pair<String, Long> entry : lastUpdated) {
+            for(final SerializingPair<String, Long> entry : lastUpdated) {
                 
                 if(entry.getOne().equals(key)) {
                     toRemove.add(entry);
@@ -392,9 +392,9 @@ public class FilePersistedExpiringCache<Value> implements Cache<String, Value>{
 
             try {
                 
-                final LinkedList<Pair<String, Long>> lastUpdated = DataUtils.deserialize(persisting.get(LAST_UPDATED_KEY));
+                final LinkedList<SerializingPair<String, Long>> lastUpdated = DataUtils.deserialize(persisting.get(LAST_UPDATED_KEY));
                 
-                lastUpdated.addFirst(new Pair<String, Long>(key, time));
+                lastUpdated.addFirst(new SerializingPair<String, Long>(key, time));
                 
                 persisting.put(LAST_UPDATED_KEY, DataUtils.serialize(lastUpdated));
                 
@@ -424,7 +424,7 @@ public class FilePersistedExpiringCache<Value> implements Cache<String, Value>{
     
     private boolean cleanup(long currentTime) throws ResourceException {
             
-        final LinkedList<Pair<String, Long>> lastUpdated;
+        final LinkedList<SerializingPair<String, Long>> lastUpdated;
         
         if (persisting.get(LAST_UPDATED_KEY) == null) {
         	return true;
@@ -446,7 +446,7 @@ public class FilePersistedExpiringCache<Value> implements Cache<String, Value>{
                 
                 while(true) {
                     
-                    final Pair<String, Long> current;
+                    final SerializingPair<String, Long> current;
                     
                     try {
                         current = lastUpdated.removeLast();
@@ -473,7 +473,7 @@ public class FilePersistedExpiringCache<Value> implements Cache<String, Value>{
                 
                 final Set<String> toRetain = new HashSet<String>();
                 
-                for(final Pair<String, Long> entry : lastUpdated) {
+                for(final SerializingPair<String, Long> entry : lastUpdated) {
                     toRetain.add(entry.getOne());
                 }
                 
@@ -539,6 +539,44 @@ public class FilePersistedExpiringCache<Value> implements Cache<String, Value>{
             return lastCleanup;
         }
         
+    }
+
+    private static final class SerializingPair<ValueOne, ValueTwo> implements Serializable {
+
+        @Serial
+        private static final long serialVersionUID = -285718468006109653L;
+
+        public SerializingPair() {
+        }
+
+        public SerializingPair(ValueOne key, ValueTwo other) {
+            this.one = key;
+            this.two = other;
+        }
+
+        private ValueOne one;
+        private ValueTwo two;
+
+        public ValueOne getOne() {
+            return one;
+        }
+
+        public ValueTwo getTwo() {
+            return two;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o == null || getClass() != o.getClass()) return false;
+            Pair<?, ?> pair = (Pair<?, ?>) o;
+            return Objects.equals(one, pair.getOne()) && Objects.equals(two, pair.getTwo());
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(one, two);
+        }
+
     }
 
 }

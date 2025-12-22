@@ -348,7 +348,7 @@ public class StreamingFileHash {
     }
 
     public void remove(byte [] key) throws ReadFailure, WriteFailure {
-                
+
         final long limitedHash = Math.abs(hashCode(key)) % hashSize; //limit the hash size
         
         final long hashedIndex = limitedHash * (BUCKET_SIZE);

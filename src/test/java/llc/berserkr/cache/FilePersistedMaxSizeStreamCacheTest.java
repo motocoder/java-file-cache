@@ -1,22 +1,30 @@
 package llc.berserkr.cache;
-
-import llc.berserkr.cache.util.StringUtilities;
-import org.apache.log4j.BasicConfigurator;
-import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-
-import static org.junit.jupiter.api.Assertions.*;
-
-public class FilePersistedMaxSizeStreamCacheTest {
-
+//
+//import llc.berserkr.cache.converter.BytesStringConverter;
+//import llc.berserkr.cache.converter.Converter;
+//import llc.berserkr.cache.converter.ReverseConverter;
+//import llc.berserkr.cache.converter.StringSizeConverter;
+//import llc.berserkr.cache.exception.ResourceException;
+//import llc.berserkr.cache.util.StringUtilities;
+//import org.apache.log4j.BasicConfigurator;
+//import org.junit.jupiter.api.Test;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
+//
+//import java.io.*;
+//import java.util.ArrayList;
+//import java.util.List;
+//import java.util.Random;
+//import java.util.UUID;
+//import java.util.concurrent.Executor;
+//import java.util.concurrent.Executors;
+//
+//import static org.junit.jupiter.api.Assertions.*;
+//
+///**
+// */
+//public class FilePersistedMaxSizeStreamCacheTest {
+//
 //	private static final Logger logger = LoggerFactory.getLogger(FilePersistedMaxSizeStreamCacheTest.class);
 //
 //	private static final byte[] TEN_BYTES = new byte[10];
@@ -26,7 +34,7 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //	}
 //
 //	@Test
-//	public void testFilePersistingStreamCacheTest() {
+//	public void testFilePersistingStreamCacheTest() throws IOException, ResourceException {
 //
 //		try {
 //
@@ -92,16 +100,13 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //	}
 //
 //	@Test
-//	public void testFileMultithreadedTest() {
+//	public void testFileMultithreadedTest() throws IOException {
 //
 //		final Executor exec = Executors.newFixedThreadPool(10);
 //
 //		try {
 //
-//			Random random = new Random();
-//			String appendix = String.valueOf(Math.abs(random.nextInt()));
-//
-//			File root = new File("./target/test-files/temp" + appendix + "/");
+//			File root = new File("./target/test-files/temp" +  UUID.randomUUID() + "/");
 //
 //			deleteRoot(root);
 //
@@ -116,7 +121,7 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //			final String key = "dfslkjasdfkljsadfa";
 //			final String value = "dfsaoiuwekljfsdfsadlkaioklalkdsf";
 //
-//			for (int x = 0; x < 10; x++) {
+//			for (int x = 1; x < 10; x++) {
 //
 //				final int xfinal = x;
 //
@@ -143,7 +148,7 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //
 //			Thread.sleep(3000);
 //
-//			for (int x = 0; x < 10; x++) {
+//			for (int x = 1; x < 10; x++) {
 //
 //				final int xfinal = x;
 //
@@ -201,7 +206,7 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //			Thread.sleep(10000);
 //
 //			// test exists
-//			for (int x = 0; x < 10; x++) {
+//			for (int x = 1; x < 10; x++) {
 //
 //				final String keyRepeated = StringUtilities.repeat(key, x);
 //				assertEquals(false, cache.exists(keyRepeated));
@@ -227,7 +232,7 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //	}
 //
 //	@Test
-//	public void universalTest() {
+//	public void universalTest() throws IOException {
 //
 //		try {
 //
@@ -277,16 +282,16 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //			assertEquals(cache.exists(key), true);
 //			assertEquals(cache.exists(key2), true);
 //
-//			List<InputStream> streamList = cache.getAll(keyList);
-//
-//			for (int y = 0; y < 1; y++) {
-//
-//				String ret = getStringFromInputStream(streamList.get(y));
-//
-//				assertEquals(value, ret);
-//				assertEquals(cache.exists(key), true);
-//
-//			}
+////			List<InputStream> streamList = cache.getAll(keyList);
+////
+////			for (int y = 0; y < 1; y++) {
+////
+////				String ret = getStringFromInputStream(streamList.get(y));
+////
+////				assertEquals(value, ret);
+////				assertEquals(cache.exists(key), true);
+////
+////			}
 //
 //			cache.clear();
 //
@@ -301,7 +306,7 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //	}
 //
 //	@Test
-//	public void testPersistedPart() {
+//	public void testPersistedPart() throws IOException {
 //
 //		Random random = new Random();
 //		String appendix = String.valueOf(Math.abs(random.nextInt()));
@@ -315,9 +320,14 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //		final File temp2Folder = new File(root2, "temp2");
 //		final File persistingFolder = new File(root2, "persisting");
 //
-//		FileHashCache diskCache = new FileHashCache(dataFolder, tempFolder);
+//		StreamFileCache diskCache = new StreamFileCache(dataFolder);
+//        final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
+//            new KeyConvertingCache<String, byte[], InputStream>(
+//                diskCache, new ReverseConverter<>(new BytesStringConverter())
+//            );
 //
-//		Cache<String, InputStream> fileCache = new SynchronizedCache<String, InputStream>(diskCache);
+//
+//		Cache<String, InputStream> fileCache = new SynchronizedCache<String, InputStream>(keyConvertingCache);
 //
 //		Cache<String, InputStream> cache = new FilePersistedMaxSizeStreamCache(persistingFolder,
 //				fileCache, 20);
@@ -363,10 +373,14 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //
 //			assertNull(cache);
 //
-//			final FileHashCache diskCache2 = new FileHashCache(dataFolder, temp2Folder);
+//			final StreamFileCache diskCache2 = new StreamFileCache(dataFolder);
+//            final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache2 =
+//                new KeyConvertingCache<String, byte[], InputStream>(
+//                    diskCache2, new ReverseConverter<>(new BytesStringConverter())
+//                );
 //
 //			final Cache<String, InputStream> fileCache2 = new SynchronizedCache<String, InputStream>(
-//					diskCache2);
+//                    keyConvertingCache2);
 //
 //			cache = new FilePersistedMaxSizeStreamCache(persistingFolder, fileCache2, 20);
 //
@@ -412,7 +426,7 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //	}
 //
 //	@Test
-//	public void testMaxSizePart() {
+//	public void testMaxSizePart() throws IOException {
 //
 //		Random random = new Random();
 //		String appendix = String.valueOf(Math.abs(random.nextInt()));
@@ -425,9 +439,14 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //		final File tempFolder = new File(root2, "temp");
 //		final File persistingFolder = new File(root2, "persisting");
 //
-//		FileHashCache diskCache = new FileHashCache(dataFolder, tempFolder);
+//		StreamFileCache diskCache = new StreamFileCache(dataFolder);
 //
-//		Cache<String, InputStream> fileCache = new SynchronizedCache<String, InputStream>(diskCache);
+//        final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache2 =
+//                new KeyConvertingCache<String, byte[], InputStream>(
+//                        diskCache, new ReverseConverter<>(new BytesStringConverter())
+//                );
+//
+//		Cache<String, InputStream> fileCache = new SynchronizedCache<String, InputStream>(keyConvertingCache2);
 //
 //		Cache<String, InputStream> cache = new FilePersistedMaxSizeStreamCache(persistingFolder,
 //				fileCache, 20);
@@ -485,7 +504,7 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //	}
 //
 //	@Test
-//	public void testFilePersistedExpiringCacheTest() {
+//	public void testFilePersistedExpiringCacheTest() throws IOException {
 //
 //		try {
 //
@@ -497,13 +516,17 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //			deleteRoot(root);
 //
 //			final File dataFolder = new File(root, "data");
-//			final File tempFolder = new File(root, "temp");
 //			final File persistingFolder = new File(root, "persisting");
 //
-//			FileHashCache diskCache = new FileHashCache(dataFolder, tempFolder);
+//            StreamFileCache diskCache = new StreamFileCache(dataFolder);
+//
+//            final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache2 =
+//                new KeyConvertingCache<String, byte[], InputStream>(
+//                        diskCache, new ReverseConverter<>(new BytesStringConverter())
+//                );
 //
 //			Cache<String, InputStream> fileCache = new SynchronizedCache<String, InputStream>(
-//					diskCache);
+//                    keyConvertingCache2);
 //
 //			Cache<String, InputStream> cache = new FilePersistedMaxSizeStreamCache(
 //					persistingFolder, fileCache, 150);
@@ -514,6 +537,8 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //			final String value2 = "dfgsds";
 //			InputStream returnValue;
 //
+//            System.out.println("run1");
+//
 //			// TEST PUT, GET, REMOVE, and EXISTS
 //
 //			cache.put(key, new ByteArrayInputStream(value.getBytes()));
@@ -521,6 +546,7 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //			returnValue = cache.get(key);
 //
 //			assertEquals(value, getStringFromInputStream(returnValue));
+//
 //			assertEquals(cache.exists(key), true);
 //
 //			cache.remove(key);
@@ -537,20 +563,20 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //			cache.put(key, new ByteArrayInputStream(value.getBytes()));
 //			cache.put(key2, new ByteArrayInputStream(value2.getBytes()));
 //			cache.put(key2, new ByteArrayInputStream(value2.getBytes())); //repeat to test the automatic remove() when duplicate
-//
+//            System.out.println("run4");
 //			assertEquals(cache.exists(key), true);
 //			assertEquals(cache.exists(key2), true);
 //
-//			List<InputStream> stringList = cache.getAll(keyList);
-//
-//			for (int y = 0; y < 1; y++) {
-//
-//				returnValue = stringList.get(y);
-//
-//				assertEquals(value, getStringFromInputStream(returnValue));
-//				assertEquals(cache.exists(key), true);
-//
-//			}
+////			List<InputStream> stringList = cache.getAll(keyList);
+////
+////			for (int y = 0; y < 1; y++) {
+////
+////				returnValue = stringList.get(y);
+////
+////				assertEquals(value, getStringFromInputStream(returnValue));
+////				assertEquals(cache.exists(key), true);
+////
+////			}
 //
 //			cache.clear();
 //
@@ -568,7 +594,7 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //	}
 //
 //	@Test
-//	public void negativeSizeTest() {
+//	public void negativeSizeTest() throws IOException {
 //
 //		try {
 //
@@ -586,10 +612,15 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //			final File tempFolder = new File(root, "temp");
 //			final File persistingFolder = new File(root, "persisting");
 //
-//			FileHashCache diskCache = new FileHashCache(dataFolder, tempFolder);
+//			StreamFileCache diskCache = new StreamFileCache(dataFolder);
+//
+//            final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache2 =
+//                    new KeyConvertingCache<String, byte[], InputStream>(
+//                            diskCache, new ReverseConverter<>(new BytesStringConverter())
+//                    );
 //
 //			Cache<String, InputStream> fileCache = new SynchronizedCache<String, InputStream>(
-//					diskCache);
+//                    keyConvertingCache2);
 //
 //			Cache<String, InputStream> cache = new FilePersistedMaxSizeStreamCache(
 //					persistingFolder, fileCache, 150);
@@ -692,6 +723,6 @@ public class FilePersistedMaxSizeStreamCacheTest {
 //			return retString;
 //		}
 //
-//	}//todo stuff all broken i dun wanna fix it
-
-}
+//	}
+//
+//}

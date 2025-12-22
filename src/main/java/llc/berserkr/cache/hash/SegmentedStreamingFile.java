@@ -489,9 +489,17 @@ public class SegmentedStreamingFile {
                             break;
                         }
                         case FREE_STATE: {
+
                             //segment is free and cached so check the length
-                            segmentLength = reference.getSegmentSize(address);
-                            break;
+                            final Integer lengthTemp = reference.getSegmentSize(address);
+
+                            if(lengthTemp != null) {
+                                segmentLength = lengthTemp;
+                                break;
+                            }
+                            //else fall through
+
+
                         }
                         case null :
                         default: {
@@ -937,7 +945,7 @@ public class SegmentedStreamingFile {
             return segmentTypes.get(address);
         }
 
-        public int getSegmentSize(long address) {
+        public Integer getSegmentSize(long address) {
             return segmentSizes.get(address);
         }
     }

@@ -321,4 +321,11 @@ public class HashLocksTest {
             throw new RuntimeException(e);
         }
     }
+
+    @Test
+    public void testBS() {
+
+        int alpha = (int) ((Math.min(System.currentTimeMillis() - (System.currentTimeMillis() - 200), 300) / 300f) * 255);
+        System.out.println("alpha = " + alpha);
+    }
 }

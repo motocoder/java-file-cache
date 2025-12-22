@@ -23,9 +23,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
 import static llc.berserkr.cache.util.DataUtils.convertInputStreamToBytes;
-import static org.fest.assertions.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class CacheCompareTest {
@@ -83,44 +81,7 @@ public class CacheCompareTest {
     private static final int TEST_SIZE = 10;
     private static final int READ_LOOPS = 1000;
 
-    @Test
-    public void test() throws IOException, ResourceException, InterruptedException {
 
-        final StreamFileCache hashCache = new StreamFileCache(hashCacheDir, TEST_SIZE * 2);
-
-        final Map<String, String> data = new HashMap<>();
-
-        for(int i = 0; i < TEST_SIZE; i++) {
-            data.put("key" + i, "value" + i);
-        }
-
-        final long startTime = System.currentTimeMillis();
-
-        for(final Map.Entry<String, String> entry : data.entrySet()) {
-            hashCache.put(entry.getKey().getBytes(StandardCharsets.UTF_8), new ByteArrayInputStream(entry.getValue().getBytes(StandardCharsets.UTF_8)));
-        }
-
-        System.out.println("data written " + (System.currentTimeMillis() - startTime));
-
-        final Map<String, String> readData = new HashMap<>();
-
-        for(int i = 0; i < READ_LOOPS; i++) {
-            for (final Map.Entry<String, String> entry : data.entrySet()) {
-
-                final String keyString = entry.getKey();
-                final String value = new String(convertInputStreamToBytes(hashCache.get(keyString.getBytes(StandardCharsets.UTF_8))), StandardCharsets.UTF_8);
-
-                readData.put(keyString, value);
-
-            }
-        }
-
-        assertEquals(readData.size(), data.size());
-        assertEquals(readData, data);
-
-        System.out.println("test time: " + (System.currentTimeMillis() - startTime));
-
-    }
 
     void deleteRoot (File root) {
         if (root.exists()) {
@@ -136,6 +97,7 @@ public class CacheCompareTest {
             root.delete();
         }
     }
+
     private final int MULTI_WRITES = 10;
     private final int MULTI_READS = 1000;
     private final int THREADS = 200;
@@ -159,7 +121,7 @@ public class CacheCompareTest {
         final Cache<byte [], InputStream> fileCache = new StreamFileCache(dataFolder);
 
         final KeyConvertingCache<String, byte [], InputStream> keyConvertingCache =
-                new KeyConvertingCache<String, byte[], InputStream>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
+                new KeyConvertingCache<>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
 
         final Cache<String, InputStream> cache = keyConvertingCache;
 
@@ -300,6 +262,45 @@ public class CacheCompareTest {
         }
 
         assertFalse(flag);
+
+    }
+
+    @Test
+    public void test() throws IOException, ResourceException, InterruptedException {
+
+        final StreamFileCache hashCache = new StreamFileCache(hashCacheDir, TEST_SIZE * 2);
+
+        final Map<String, String> data = new HashMap<>();
+
+        for(int i = 0; i < TEST_SIZE; i++) {
+            data.put("key" + i, "value" + i);
+        }
+
+        final long startTime = System.currentTimeMillis();
+
+        for(final Map.Entry<String, String> entry : data.entrySet()) {
+            hashCache.put(entry.getKey().getBytes(StandardCharsets.UTF_8), new ByteArrayInputStream(entry.getValue().getBytes(StandardCharsets.UTF_8)));
+        }
+
+        System.out.println("data written " + (System.currentTimeMillis() - startTime));
+
+        final Map<String, String> readData = new HashMap<>();
+
+        for(int i = 0; i < READ_LOOPS; i++) {
+            for (final Map.Entry<String, String> entry : data.entrySet()) {
+
+                final String keyString = entry.getKey();
+                final String value = new String(convertInputStreamToBytes(hashCache.get(keyString.getBytes(StandardCharsets.UTF_8))), StandardCharsets.UTF_8);
+
+                readData.put(keyString, value);
+
+            }
+        }
+
+        assertEquals(readData.size(), data.size());
+        assertEquals(readData, data);
+
+        System.out.println("test time: " + (System.currentTimeMillis() - startTime));
 
     }
 

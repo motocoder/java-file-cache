@@ -8,6 +8,10 @@ Inside the segmented file is a bucket of key/value combinations which use hashco
 
 ```Java
 
+/****************************************************************************/
+
+//simplest form handles everything in bytes
+
 final BytesFileCache cache = new BytesFileCache(hashCacheDir);
 
 cache.put("key".getBytes(), "value".getBytes());

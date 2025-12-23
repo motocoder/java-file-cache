@@ -3,6 +3,10 @@ package llc.berserkr.cache.hash;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
+
 /**
  * Reading and writing operations can happen simultaneous as long as they don't conflict at several points.
  *
@@ -87,14 +91,18 @@ public class HashLocks {
             switch (lockType) {
                 case READER: {
                     readers--;
-                    writeLocks.notify(); //could change this to only notify single readers or writers if performance hit, needs profiling
+                    if((readers == 0 && writeLocks.peekLock() == 0 && writers == 0)) {
+                        writeLocks.notify();
+                    }
                     break;
                 }
 
                 case WRITER: {
                     writers--;
                     writeLocks.releaseLock(); //only write releases global lock
-                    writeLocks.notify(); //could change this to only notify single readers or writers if performance hit, needs profiling
+                    if((writeLocks.peekLock() == 0 && writers == 0)) {
+                        writeLocks.notifyAll();
+                    }
                     break;
                 }
             }
@@ -118,7 +126,7 @@ public class HashLocks {
 
         private synchronized void releaseLock() {
             writeLocks--;
-            this.notifyAll();
+//            this.notifyAll();
         }
 
         public synchronized int peekLock() {

@@ -732,6 +732,15 @@ public class SegmentedStreamingFile {
 
     }
 
+    /**
+     * //TODO make a reader/writer that's just for the transactions
+     *
+     * //TODO store the last address in the transaction space maybe. Needs to have a transaction of it's own to avoid corruption
+     * this may adversly affect the performance of scanning through the items and mapping them
+     * @param toWrite
+     * @throws WriteFailure
+     * @throws ReadFailure
+     */
     public void writeTransactionalBytes(byte [] toWrite) throws WriteFailure, ReadFailure {
 
         if(toWrite.length > START_OFFSET) {

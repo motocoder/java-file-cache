@@ -36,6 +36,9 @@ public class LocalRandomAccess {
         //old method leaving hooks in for now.
     }
 
+    //TODO convert to a system that manages a map to a writer that's at a position close to the seek position
+    //we will use it at. I think this can probably just be a tree map. This will improve performance some I think.
+    //currently the seek operation is one of the performance choke points.
     private final ThreadLocal<RandomAccessFile> localWriter = new ThreadLocal<>();
 
     public RandomAccessFile getWriter() {

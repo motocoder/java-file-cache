@@ -12,6 +12,9 @@ import java.util.*;
 
 import java.util.concurrent.ConcurrentHashMap;
 
+import static llc.berserkr.cache.util.DataUtils.bytesToLong;
+import static llc.berserkr.cache.util.DataUtils.longToByteArray;
+
 
 /**
  * 
@@ -149,7 +152,7 @@ public class FileHash {
                    throw new RuntimeException("hash was not initialized properly");
                }
 
-               final long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
+               final long blobIndex = bytesToLong(currentKeyIn);
 
                final Set<Pair<byte [], byte []>> toWrite = new HashSet<>();
 
@@ -188,7 +191,7 @@ public class FileHash {
 
                if(blobIndexAfterSet != blobIndex) {
 
-                   final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(blobIndexAfterSet);
+                   final byte[] bytesIndex = longToByteArray(blobIndexAfterSet);
 
                    randomWrite.seek(hashedIndex);
                    randomWrite.write(bytesIndex);
@@ -246,7 +249,7 @@ public class FileHash {
             }
 
             //convert the values read into an index
-            long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
+            long blobIndex = bytesToLong(currentKeyIn);
 
             byte [] returnVal = null;
 
@@ -322,7 +325,7 @@ public class FileHash {
             }
 
             //convert to an index
-            long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
+            long blobIndex = bytesToLong(currentKeyIn);
 
             //if there is a value on this hash, retrieve its value
             if (blobIndex >= 0) {
@@ -333,7 +336,7 @@ public class FileHash {
 
                 if (blobs == null) { //data corrupt lets remove our reference.
 
-                    final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(-1L);
+                    final byte[] bytesIndex = longToByteArray(-1L);
 
                     randomWrite.seek(hashedIndex);
                     randomWrite.write(bytesIndex);
@@ -365,7 +368,7 @@ public class FileHash {
 
                         //if blobs is empty, remove the hash as well.
 
-                        final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(-1L);
+                        final byte[] bytesIndex = longToByteArray(-1L);
 
                         randomWrite.seek(hashedIndex);
                         randomWrite.write(bytesIndex);
@@ -374,7 +377,7 @@ public class FileHash {
 
                         final long newAddress = blobManager.setBlobs(blobIndex, blobs);
 
-                        final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(newAddress);
+                        final byte[] bytesIndex = longToByteArray(newAddress);
 
                         randomWrite.seek(hashedIndex);
                         randomWrite.write(bytesIndex);
@@ -431,7 +434,7 @@ public class FileHash {
             }
 
             //convert to an index
-            long blobIndex = SegmentedStreamingFile.bytesToLong(currentKeyIn);
+            long blobIndex = bytesToLong(currentKeyIn);
 
             //if there is a value on this hash, retrieve its value
             if (blobIndex >= 0) {
@@ -440,7 +443,7 @@ public class FileHash {
 
                 //if blobs is empty, remove the hash as well.
 
-                final byte[] bytesIndex = SegmentedStreamingFile.longToByteArray(-1L);
+                final byte[] bytesIndex = longToByteArray(-1L);
 
                 randomWrite.seek(hashedIndex);
                 randomWrite.write(bytesIndex);

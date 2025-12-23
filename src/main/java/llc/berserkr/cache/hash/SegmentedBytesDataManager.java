@@ -157,8 +157,8 @@ public class SegmentedBytesDataManager implements HashDataManager<byte [], byte 
 
                 final Pair<byte [], byte []> pair = pairs.get(i);
 
-                out.write(SegmentedStreamingFile.intToByteArray(pair.getOne().length + pair.getTwo().length));
-                out.write(SegmentedStreamingFile.intToByteArray(pair.getOne().length));
+                out.write(intToByteArray(pair.getOne().length + pair.getTwo().length));
+                out.write(intToByteArray(pair.getOne().length));
                 out.write(pair.getOne());
                 out.write(pair.getTwo());
 
@@ -186,8 +186,8 @@ public class SegmentedBytesDataManager implements HashDataManager<byte [], byte 
 
         for(int i = 0; i < count; i++) {
 
-            final int pairLength = SegmentedStreamingFile.bytesToInt(new byte[] {data[dataBase], data[dataBase + 1], data[dataBase + 2], data[dataBase + 3]});
-            final int keyLength = SegmentedStreamingFile.bytesToInt(new byte[] {data[dataBase + 4], data[dataBase + 5], data[dataBase + 6], data[dataBase + 7]});
+            final int pairLength = bytesToInt(new byte[] {data[dataBase], data[dataBase + 1], data[dataBase + 2], data[dataBase + 3]});
+            final int keyLength = bytesToInt(new byte[] {data[dataBase + 4], data[dataBase + 5], data[dataBase + 6], data[dataBase + 7]});
 
             final byte [] keyData = new byte[keyLength];
             final byte [] payloadData = new byte[pairLength - keyLength];

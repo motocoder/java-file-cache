@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -141,10 +142,8 @@ public class FilePersistedMaxCountCacheTest {
 
 		try {
 
-			Random random = new Random();
-			String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-			File root = new File("./target/test-files/temp" + appendix + "/");
+			File root = new File("./target/test-files/temp" + UUID.randomUUID() + "/");
 
 			deleteRoot(root);
 
@@ -152,17 +151,7 @@ public class FilePersistedMaxCountCacheTest {
 
 			final int maxCount = 50;
 
-			final Consumer<String> call = new Consumer<String>() {
-
-				@Override
-				public void accept(String value) {
-
-					removed();
-				}
-
-			};
-
-			final Cache<String, String> cache = CacheFactory.getSerializingMaxCountFileCache(maxCount, dataFolder, (removed) -> {});
+			final Cache<String, String> cache = CacheFactory.getSerializingMaxCountFileCache(maxCount, dataFolder, (removed) -> {removed();});
 
 			final String key = "dfslkjasdfkljsadfa";
 			final String value = "dfsaoiuwekljfsdfsadlkaioklalkdsf";

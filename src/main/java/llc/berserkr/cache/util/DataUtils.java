@@ -186,25 +186,6 @@ public class DataUtils {
         return decompress(compressedData, 0);
     }
 
-    public static byte[] intToByteArray(int value) {
-        // Allocate a ByteBuffer with capacity for 4 bytes (an int)
-        ByteBuffer buffer = ByteBuffer.allocate(4);
-
-        // Set the byte order (e.g., BIG_ENDIAN or LITTLE_ENDIAN)
-        // BIG_ENDIAN is common for network protocols and human readability
-        buffer.order(ByteOrder.LITTLE_ENDIAN);
-
-        // Put the integer into the buffer
-        buffer.putInt(value);
-
-        // Return the byte array representation of the buffer's content
-        return buffer.array();
-    }
-
-    public static int bytesToInt(byte [] bytes) {
-        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getInt();
-    }
-
     public static byte[] charToBytes(char ch) {
 
         // Extract the most significant byte (MSB)
@@ -279,6 +260,44 @@ public class DataUtils {
 
         return totalRead;
 
+    }
+
+    public static long bytesToLong(byte[] bytes) {
+        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getLong();
+    }
+
+    public static int bytesToInt(byte [] bytes) {
+        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getInt();
+    }
+
+    public static byte[] intToByteArray(int value) {
+        // Allocate a ByteBuffer with capacity for 4 bytes (an int)
+        ByteBuffer buffer = ByteBuffer.allocate(4);
+
+        // Set the byte order (e.g., BIG_ENDIAN or LITTLE_ENDIAN)
+        // BIG_ENDIAN is common for network protocols and human readability
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+
+        // Put the integer into the buffer
+        buffer.putInt(value);
+
+        // Return the byte array representation of the buffer's content
+        return buffer.array();
+    }
+
+    public static byte[] longToByteArray(long value) {
+        // Allocate a ByteBuffer with capacity for 4 bytes (an int)
+        ByteBuffer buffer = ByteBuffer.allocate(8);
+
+        // Set the byte order (e.g., BIG_ENDIAN or LITTLE_ENDIAN)
+        // BIG_ENDIAN is common for network protocols and human readability
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+
+        // Put the integer into the buffer
+        buffer.putLong(value);
+
+        // Return the byte array representation of the buffer's content
+        return buffer.array();
     }
 
 }

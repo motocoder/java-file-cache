@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import static llc.berserkr.cache.hash.SegmentedTransactions.*;
-import static llc.berserkr.cache.util.DataUtils.convertInputStreamToBytes;
+import static llc.berserkr.cache.util.DataUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -53,9 +53,9 @@ public class SegmentedFileTest {
 
         final int size = 4449929;
 
-        final byte [] sizeBytes = SegmentedStreamingFile.intToByteArray(size);
+        final byte [] sizeBytes = intToByteArray(size);
 
-        assertEquals(size, SegmentedStreamingFile.bytesToInt(sizeBytes));
+        assertEquals(size, bytesToInt(sizeBytes));
     }
 
     @Test

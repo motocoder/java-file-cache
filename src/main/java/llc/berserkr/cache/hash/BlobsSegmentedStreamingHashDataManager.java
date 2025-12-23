@@ -160,10 +160,10 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
 
                 final Pair<byte [], Long> pair = pairs.get(i);
 
-                out.write(SegmentedStreamingFile.intToByteArray(pair.getOne().length + 8));
-                out.write(SegmentedStreamingFile.intToByteArray(pair.getOne().length));
+                out.write(intToByteArray(pair.getOne().length + 8));
+                out.write(intToByteArray(pair.getOne().length));
                 out.write(pair.getOne());
-                out.write(SegmentedStreamingFile.longToByteArray(pair.getTwo()));
+                out.write(longToByteArray(pair.getTwo()));
 
             }
 
@@ -189,8 +189,8 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
 
         for(int i = 0; i < count; i++) {
 
-            final int pairLength = SegmentedStreamingFile.bytesToInt(new byte[] {data[dataBase], data[dataBase + 1], data[dataBase + 2], data[dataBase + 3]});
-            final int keyLength = SegmentedStreamingFile.bytesToInt(new byte[] {data[dataBase + 4], data[dataBase + 5], data[dataBase + 6], data[dataBase + 7]});
+            final int pairLength = bytesToInt(new byte[] {data[dataBase], data[dataBase + 1], data[dataBase + 2], data[dataBase + 3]});
+            final int keyLength = bytesToInt(new byte[] {data[dataBase + 4], data[dataBase + 5], data[dataBase + 6], data[dataBase + 7]});
 
             final byte [] keyData = new byte[keyLength];
             final byte [] payloadData = new byte[pairLength - keyLength];
@@ -200,7 +200,7 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
 
             dataBase += pairLength + 8;
 
-            pairs.add(new Pair<>(keyData, SegmentedStreamingFile.bytesToLong(payloadData)));
+            pairs.add(new Pair<>(keyData, bytesToLong(payloadData)));
         }
 
         return pairs;

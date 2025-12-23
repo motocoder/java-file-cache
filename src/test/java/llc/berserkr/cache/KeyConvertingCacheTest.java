@@ -14,8 +14,8 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import static llc.berserkr.cache.hash.SegmentedStreamingFile.bytesToLong;
-import static llc.berserkr.cache.hash.SegmentedStreamingFile.longToByteArray;
+import static llc.berserkr.cache.util.DataUtils.bytesToLong;
+import static llc.berserkr.cache.util.DataUtils.longToByteArray;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class KeyConvertingCacheTest {

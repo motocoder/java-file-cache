@@ -17,6 +17,15 @@ import java.util.List;
 import static llc.berserkr.cache.hash.SegmentedStreamingFile.delete;
 
 //TODO fix this class it fails multi-threading
+
+//TODO this class restricts the writes/reads to one at a time, needs to be updated now that the file
+// cache handles async writes and reads
+
+//TODO The whole philosophy of this cache needs to be redone because it writes to a temp file,
+// a better solution would be to provide a converter that tells you the size of keys,
+// or some how send the size data in with the value. the only way to know the size of the inputstream is
+// to read it entirely
+
 public class FilePersistedMaxSizeStreamCache implements Cache<String, InputStream> {
 
     private static final Logger logger = LoggerFactory.getLogger(FilePersistedMaxSizeCache.class);

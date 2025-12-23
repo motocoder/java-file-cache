@@ -16,6 +16,8 @@ import java.util.function.Consumer;
  * 
  * @author sean
  *
+ * TODO this class restricts the writes/reads to one at a time, needs to be updated now that the file cache handles async writes and reads
+ *
  * @param <Value>
  */
 public class FilePersistedMaxCountCache<Value> implements Cache<String, Value> {

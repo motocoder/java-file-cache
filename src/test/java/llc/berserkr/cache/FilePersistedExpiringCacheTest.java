@@ -43,15 +43,16 @@ public class FilePersistedExpiringCacheTest {
 
 			deleteRoot(root);
 
-			final Converter<Integer, String> converter = new ReverseConverter<Integer, String>(
-					new StringSizeConverter());
+
 
 			final File dataFolder = new File(root, "data");
 
 			final int expiringValue = 2000;
 
-			final Cache<String, String> cache = CacheFactory.getExpiringFileCache(expiringValue,
-					dataFolder, converter);
+            final Converter<Integer, String> converter = new ReverseConverter<Integer, String>(
+                    new StringSizeConverter());
+
+			final Cache<String, String> cache = CacheFactory.getExpiringFileCache(expiringValue, dataFolder, converter);
 
 			final String key = "dfslkjasdfkljsadfa";
 			final String value = "dfsaoiuwekljfsdfsadlkaioklalkdsf";

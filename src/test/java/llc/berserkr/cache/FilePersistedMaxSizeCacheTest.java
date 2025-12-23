@@ -341,8 +341,7 @@ public class FilePersistedMaxSizeCacheTest {
 			final Converter<Integer, String> converter = new ReverseConverter<Integer, String>(
 					new StringSizeConverter());
 
-			final Cache<String, String> cache = CacheFactory.getMaxSizeFileCache(maxSize,
-					dataFolder, converter);
+			final Cache<String, String> cache = CacheFactory.getMaxSizeFileCache(maxSize,dataFolder, converter);
 
 			final String key = "dfslkjasdfkljsadfa";
 			final String value = "dfsaoiuwekljfsdfsadlkaioklalkdsf";

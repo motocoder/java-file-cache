@@ -15,6 +15,8 @@ import java.util.List;
  * 
  * @author sean
  *
+ * TODO this class restricts the writes/reads to one at a time, needs to be updated now that the file cache handles async writes and reads
+ *
  * @param <Value>
  */
 public class FilePersistedMaxSizeCache<Value> implements Cache<String, Value> {

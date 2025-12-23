@@ -15,6 +15,7 @@ import java.util.*;
  * This class is used for expiring the values. It only works on memory caches. This will not work on a file cache.
  * 
  * TODO this class really has an issue with large and numerous keys. It will degrade performance with O(N)
+ * TODO this class restricts the writes/reads to one at a time, needs to be updated now that the file cache handles async writes and reads
  * @author Sean Wagner
  *
  */

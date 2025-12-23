@@ -77,7 +77,6 @@ public class CacheFactory {
     ) throws IOException {
 
         final File dataFolder = new File(cacheRoot, "data");
-        final File tempFolder = new File(cacheRoot, "temp");
 
         final BytesFileCache diskCache = new BytesFileCache(dataFolder);
 
@@ -90,14 +89,13 @@ public class CacheFactory {
                 new SerializingConverter<Value>()
             );
 
-
         final Cache<String, Value> cache =
-                new FilePersistedMaxCountCache<Value>(
-                        dataFolder,
-                        fileCache,
-                        maxCount,
-                        onRemoved
-                );
+            new FilePersistedMaxCountCache<Value>(
+                dataFolder,
+                fileCache,
+                maxCount,
+                onRemoved
+            );
 
         return new SynchronizedCache<String, Value>(cache);
 
@@ -175,7 +173,6 @@ public class CacheFactory {
     ) throws IOException {
 
         final File dataFolder = new File(cacheRoot, "data");
-        final File tempFolder = new File(cacheRoot, "temp");
 
         final StreamFileCache diskCache = new StreamFileCache(dataFolder);
 
@@ -449,43 +446,34 @@ public class CacheFactory {
         final File expiringRoot = new File(cacheRoot, "expiringRoot");
         final File expiringDataFolder = new File(expiringRoot, "data");
 
-        final BytesFileCache diskCache = new BytesFileCache(dataFolder);
-
-        final KeyConvertingCache<String, byte [], byte []> keyConvertingCache =
-            new KeyConvertingCache<String, byte[], byte []>(
-                diskCache, new ReverseConverter<>(new BytesStringConverter())
-            );
-
         final Cache<String, Value> fileCache =
-            new SynchronizedCache<String, Value> (
-                new ValueConvertingCache<String, Value, byte[]> (
-                    keyConvertingCache,
+            new SynchronizedCache<> (
+                new ValueConvertingCache<> (
+                    new KeyConvertingCache<>(
+                        new BytesFileCache(dataFolder), new ReverseConverter<>(new BytesStringConverter())
+                    ),
                     valueConvertJobToBytes
                 )
 
             );
 
-        final BytesFileCache expringPersistDiskCache = new BytesFileCache(expiringDataFolder);
-
-        final KeyConvertingCache<String, byte [], byte []> keyConvertingExpiringCache =
-            new KeyConvertingCache<String, byte[], byte []>(
-                expringPersistDiskCache, new ReverseConverter<>(new BytesStringConverter())
-            );
 
         final Cache<String, Value> cache =
-                new FilePersistedExpiringCache<Value>(
-                        new FilePersistedMaxSizeCache<Value>(
-                                dataFolder,
-                                fileCache,
-                                sizeConverter,
-                                maxSize
-                        ),
-                        keyConvertingExpiringCache,
-                        (long)expireTimeout,
-                        (long)(expireTimeout * 2)
-                );
+            new FilePersistedExpiringCache<>(
+                new FilePersistedMaxSizeCache<>(
+                    dataFolder,
+                    fileCache,
+                    sizeConverter,
+                    maxSize
+                ),
+                new KeyConvertingCache<>(
+                    new BytesFileCache(expiringDataFolder), new ReverseConverter<>(new BytesStringConverter())
+                ),
+                expireTimeout,
+                (expireTimeout * 2L)
+            );
 
-        return new SynchronizedCache<String, Value>(cache);
+        return new SynchronizedCache<>(cache);
 
     }
 

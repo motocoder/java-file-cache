@@ -162,8 +162,7 @@ public class FilePersistedMaxCountCacheTest {
 
 			};
 
-			final Cache<String, String> cache = CacheFactory.getSerializingMaxCountFileCache(
-					maxCount, dataFolder, call);
+			final Cache<String, String> cache = CacheFactory.getSerializingMaxCountFileCache(maxCount, dataFolder, (removed) -> {});
 
 			final String key = "dfslkjasdfkljsadfa";
 			final String value = "dfsaoiuwekljfsdfsadlkaioklalkdsf";

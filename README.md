@@ -8,7 +8,7 @@ Inside the segmented file is a bucket of key/value combinations which use hashco
 
 ```Java
 
-final FileHashCache cache = new FileHashCache(hashCacheDir);
+final BytesFileCache cache = new BytesFileCache(hashCacheDir);
 
 cache.put("key".getBytes(), "value".getBytes());
 

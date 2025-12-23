@@ -98,8 +98,8 @@ public class CacheCompareTest {
         }
     }
 
-    private final int MULTI_WRITES = 10;
-    private final int MULTI_READS = 1000;
+    private final int MULTI_WRITES = 1000;
+    private final int MULTI_READS = 1;
     private final int THREADS = 200;
 
     private boolean flag = false;

@@ -33,6 +33,11 @@ public class HashLocks {
 
     private static final Logger logger = LoggerFactory.getLogger(HashLocks.class);
 
+    //TODO this is required to prevent multiple writes occuring at the same time, this can be changed though
+    //TODO rework the transaction system to allow multiple writes
+    //TODO rework the adding segments to the end to allow multiple writes.
+    //if you do all that you should be able to get rid of the global write lock which will drastically
+    //increase multi threaded performance.
     private final SharedWriteLocks writeLocks;
 
     public enum LockType {READER, WRITER}

@@ -249,7 +249,6 @@ public class SegmentedStreamingFile {
      */
     public void write(long address, InputStream segment) throws ReadFailure, WriteFailure {
 
-
         final RandomAccessFile writeRandom = localAccess.getWriter();
 
         try {
@@ -1013,11 +1012,11 @@ public class SegmentedStreamingFile {
         private final TreeMap<Integer, Set<Long>> segmentBySize = new TreeMap<>(); //could use a tree structure here maybe
         private final Map<Long, Integer> segmentSizes = new HashMap<>();
 
-        public void setSegmentType(long address, Byte type) {
+        public synchronized void setSegmentType(long address, Byte type) {
             this.segmentTypes.put(address, type);
         }
 
-        private Long getSuitableSegment(int segmentLength) {
+        private synchronized Long getSuitableSegment(int segmentLength) {
 
             Map.Entry<Integer, Set<Long>> entry;
 
@@ -1051,7 +1050,7 @@ public class SegmentedStreamingFile {
 
         }
 
-        public void setSegmentSize(long address, int size) {
+        public synchronized void setSegmentSize(long address, int size) {
 
             segmentSizes.put(address, size);
 
@@ -1065,7 +1064,7 @@ public class SegmentedStreamingFile {
 
         }
 
-        public void setSegmentSize(long address, int newSize, int oldSize) {
+        public synchronized void setSegmentSize(long address, int newSize, int oldSize) {
 
             {
 
@@ -1099,7 +1098,7 @@ public class SegmentedStreamingFile {
 
         }
 
-        public Byte getSegmentType(long address) {
+        public synchronized Byte getSegmentType(long address) {
             return segmentTypes.get(address);
         }
 

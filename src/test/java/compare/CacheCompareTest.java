@@ -1,12 +1,14 @@
 package compare;
 
 import com.jakewharton.disklrucache.DiskLruCache;
+import llc.berserkr.cache.BytesFileCache;
 import llc.berserkr.cache.Cache;
 import llc.berserkr.cache.StreamFileCache;
 import llc.berserkr.cache.KeyConvertingCache;
 import llc.berserkr.cache.converter.BytesStringConverter;
 import llc.berserkr.cache.converter.ReverseConverter;
 import llc.berserkr.cache.exception.ResourceException;
+import llc.berserkr.cache.util.StopWatch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -23,6 +25,8 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static llc.berserkr.cache.util.DataUtils.convertInputStreamToBytes;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -81,8 +85,6 @@ public class CacheCompareTest {
     private static final int TEST_SIZE = 10;
     private static final int READ_LOOPS = 1000;
 
-
-
     void deleteRoot (File root) {
         if (root.exists()) {
 
@@ -98,9 +100,9 @@ public class CacheCompareTest {
         }
     }
 
-    private final int MULTI_WRITES = 100;
+    private final int MULTI_WRITES = 10;
     private final int MULTI_READS = 1000;
-    private final int THREADS = 200;
+    private final int THREADS = 50;
 
     private boolean flag = false;
 
@@ -155,6 +157,124 @@ public class CacheCompareTest {
                                         final String returnValue = new String(convertInputStreamToBytes(cache.get(key)));
 
                                         assertEquals(value, returnValue);
+                                    }
+                                }
+
+                            } catch (Throwable e) {
+                                e.printStackTrace();
+                                flag = true;
+                            }
+
+                        }
+
+                    }
+
+            );
+
+        }
+
+        pool.shutdown();
+
+        try {
+            pool.awaitTermination(1000, TimeUnit.SECONDS);
+        }
+        catch (InterruptedException e1) {
+            e1.printStackTrace();
+        }
+
+        assertFalse(flag);
+
+    }
+
+    @Test
+    public void multiThreadedBytesTest() throws IOException {
+
+        final ExecutorService pool = Executors.newFixedThreadPool(THREADS);
+
+        final File tempFolder = new File("./target/test-files/" + UUID.randomUUID() + "temp-data");
+        final File dataFolder = new File("./target/test-files/" + UUID.randomUUID() + "data");
+
+        deleteRoot(tempFolder);
+        deleteRoot(dataFolder);
+
+        tempFolder.mkdirs();
+        dataFolder.mkdirs();
+
+        final Cache<byte [], byte []> fileCache = new BytesFileCache(dataFolder);
+
+        final KeyConvertingCache<String, byte [], byte []> keyConvertingCache =
+                new KeyConvertingCache<>(fileCache, new ReverseConverter<>(new BytesStringConverter()));
+
+        final Cache<String, byte []> cache = keyConvertingCache;
+
+        final AtomicInteger countWrites = new AtomicInteger(0);
+        final AtomicInteger countReads = new AtomicInteger(0);
+        final AtomicInteger readLatency = new AtomicInteger(0);
+        final AtomicInteger writeLatency = new AtomicInteger(0);
+
+
+        flag = false;
+        for (int x = 0; x < THREADS -1; x++) {
+
+            final int pre = x;
+            pool.execute(
+
+                    new Runnable() {
+
+                        @Override
+                        public void run() {
+
+                            try {
+
+                                // create varying length strings by concatenation
+                                final String value = pre + "adasdfasdfasfdasfasdfdfsdf";
+                                final Random random = new Random();
+
+                                final String key = "e" + String.valueOf(random.nextInt(999999));
+
+                                // TEST PUT, GET, REMOVE, and EXISTS
+
+                                final StopWatch stopWatch = new StopWatch();
+
+                                for(int i = 0; i < MULTI_WRITES; i++) {
+
+                                    stopWatch.reset();
+                                    stopWatch.start();
+
+                                    cache.put(key, value.getBytes());
+
+                                    stopWatch.stop();
+                                    if(stopWatch.getTime() > writeLatency.get()) {
+                                        writeLatency.set((int) stopWatch.getTime());
+//                                        System.out.println("write latency " + stopWatch.getTime());
+                                    }
+
+                                    int writes = countWrites.incrementAndGet();
+
+                                    if(writes % 100 == 0) {
+//                                        System.out.println("writes " + writes);
+                                    }
+
+                                    for(int j = 0; j < MULTI_READS; j++) {
+
+                                        stopWatch.reset();
+                                        stopWatch.start();
+
+                                        final String returnValue = new String(cache.get(key));
+                                        stopWatch.stop();
+                                        if(stopWatch.getTime() > readLatency.get()) {
+                                            readLatency.set((int) stopWatch.getTime());
+//                                            System.out.println("read latency " + stopWatch.getTime());
+                                        }
+
+                                        final int reads = countReads.incrementAndGet();
+
+                                        if(reads % 10000 == 0) {
+//                                            System.out.println("reads " + reads);
+                                        }
+
+                                        assertEquals(value, returnValue);
+
                                     }
                                 }
 

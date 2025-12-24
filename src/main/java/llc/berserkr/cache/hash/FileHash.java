@@ -33,7 +33,7 @@ public class FileHash {
     private final int hashSize;
     private final File file;
 
-    private final Map<Long, HashLocks> hashLocks = new ConcurrentHashMap<>();
+    private final Map<Long, HashLocks> hashLocks = new HashMap<>();
 
     private final SegmentedBytesDataManager blobManager;
     private final LocalRandomAccess localAccess;

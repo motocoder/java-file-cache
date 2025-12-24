@@ -100,9 +100,9 @@ public class CacheCompareTest {
         }
     }
 
-    private final int MULTI_WRITES = 10;
+    private final int MULTI_WRITES = 100;
     private final int MULTI_READS = 1000;
-    private final int THREADS = 50;
+    private final int THREADS = 300;
 
     private boolean flag = false;
 
@@ -246,13 +246,13 @@ public class CacheCompareTest {
                                     stopWatch.stop();
                                     if(stopWatch.getTime() > writeLatency.get()) {
                                         writeLatency.set((int) stopWatch.getTime());
-//                                        System.out.println("write latency " + stopWatch.getTime());
+                                        System.out.println("write latency " + stopWatch.getTime());
                                     }
 
                                     int writes = countWrites.incrementAndGet();
 
-                                    if(writes % 100 == 0) {
-//                                        System.out.println("writes " + writes);
+                                    if(writes % 10000 == 0) {
+                                        System.out.println("writes " + writes);
                                     }
 
                                     for(int j = 0; j < MULTI_READS; j++) {
@@ -264,13 +264,13 @@ public class CacheCompareTest {
                                         stopWatch.stop();
                                         if(stopWatch.getTime() > readLatency.get()) {
                                             readLatency.set((int) stopWatch.getTime());
-//                                            System.out.println("read latency " + stopWatch.getTime());
+                                            System.out.println("read latency " + stopWatch.getTime());
                                         }
 
                                         final int reads = countReads.incrementAndGet();
 
-                                        if(reads % 10000 == 0) {
-//                                            System.out.println("reads " + reads);
+                                        if(reads % 1000000 == 0) {
+                                            System.out.println("reads " + reads);
                                         }
 
                                         assertEquals(value, returnValue);

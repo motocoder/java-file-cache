@@ -581,8 +581,8 @@ public class BytesFileCacheTest {
         
         try {
                             
-            final File tempFolder = new File("./target/test-files/temp-data-fileSizeTest2");
-            final File dataFolder = new File("./target/test-files/data-fileSizeTest2");
+            final File tempFolder = new File("./target/test-files/temp-data-" + UUID.randomUUID() + "fileSizeTest2");
+            final File dataFolder = new File("./target/test-files/data-" + UUID.randomUUID() + "fileSizeTest2");
 
             tempFolder.delete();
             dataFolder.delete();

@@ -1,6 +1,7 @@
 package llc.berserkr.cache.hash;
 
 import llc.berserkr.cache.exception.*;
+import llc.berserkr.cache.util.DataUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -8,6 +9,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static llc.berserkr.cache.util.DataUtils.*;
 
@@ -73,13 +75,26 @@ public class SegmentedStreamingFile {
                 root.createNewFile();
             }
 
-        } catch (FileNotFoundException e) {
-            throw new IllegalStateException("there's an issue with file for segments", e);
         } catch (IOException e) {
             throw new IllegalStateException("there's an issue with file for segments", e);
         }
 
         localAccess = new LocalRandomAccess(root);
+
+        try {
+
+            final RandomAccessFile writer = localAccess.getWriter();
+
+            if(writer.length() < START_OFFSET) {
+                writer.seek(0);
+                writer.write(new byte[START_OFFSET]);
+            }
+
+            localAccess.giveWriter(writer);
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         validateData();
 
@@ -92,84 +107,94 @@ public class SegmentedStreamingFile {
 
         try {
 
-            final byte [] transactionBytes = readTransactionalBytes();
+            for(long segmentAddress = 0; segmentAddress < START_OFFSET; segmentAddress += SEGMENT_LENGTH_BYTES_COUNT) {
 
-            switch (transactionBytes[0]) {
-                case WRITING_TRANSACTION:
-                {
+                final byte[] transactionBytes = readTransactionalBytes(segmentAddress);
 
-                    long address = bytesToLong(
-                        new byte[] {
-                            transactionBytes[1],
-                            transactionBytes[2],
-                            transactionBytes[3],
-                            transactionBytes[4],
-                            transactionBytes[5],
-                            transactionBytes[6],
-                            transactionBytes[7],
-                            transactionBytes[8]
+                switch (transactionBytes[0]) {
+                    case WRITING_TRANSACTION: {
+
+                        if(transactionBytes[9] == WRITING_TRANSACTION) { //if the end one isn't set we didn't complete transaction start
+
+                            long address = bytesToLong(
+                                new byte[]{
+                                    transactionBytes[1],
+                                    transactionBytes[2],
+                                    transactionBytes[3],
+                                    transactionBytes[4],
+                                    transactionBytes[5],
+                                    transactionBytes[6],
+                                    transactionBytes[7],
+                                    transactionBytes[8]
+                                }
+                            );
+
+                            writeState(address, FREE_STATE);
                         }
-                    );
 
-                    writeState(address, FREE_STATE);
+                        clearTransaction(segmentAddress);
+                        break;
+                    }
+                    case MERGE_TRANSACTION: {
 
-                    writeTransactionalBytes(new byte[] {});
-                    break;
+                        if(transactionBytes[13] == MERGE_TRANSACTION) { //if the end one isn't set we didn't complete transaction start
+
+                            long address = bytesToLong(
+                                new byte[] {
+                                    transactionBytes[1],
+                                    transactionBytes[2],
+                                    transactionBytes[3],
+                                    transactionBytes[4],
+                                    transactionBytes[5],
+                                    transactionBytes[6],
+                                    transactionBytes[7],
+                                    transactionBytes[8],
+                                }
+                            );
+
+                            int length = bytesToInt(
+                                new byte[]{
+                                    transactionBytes[9],
+                                    transactionBytes[10],
+                                    transactionBytes[11],
+                                    transactionBytes[12]
+                                }
+                            );
+
+                            writeState(address, FREE_STATE);
+                            write(address, new byte[length]);
+                            setSegmentSize(address, length);
+                            writeState(address, FREE_STATE);
+
+                        }
+                        clearTransaction(segmentAddress);
+                        break;
+                    }
+                    case ADD_END_TRANSACTION: {
+
+                        if(transactionBytes[5] == ADD_END_TRANSACTION) { //if the end one isn't set we didn't complete transaction start
+                            int length = bytesToInt(
+                                new byte[]{
+                                    transactionBytes[1],
+                                    transactionBytes[2],
+                                    transactionBytes[3],
+                                    transactionBytes[4]
+                                }
+                            );
+
+                            long endAddress = this.findEnd();
+
+                            writeState(endAddress, FREE_STATE);
+                            write(endAddress, new byte[length]);
+                            writeState(endAddress, FREE_STATE);
+
+                        }
+
+                        clearTransaction(segmentAddress);
+
+                    }
+
                 }
-                case MERGE_TRANSACTION:
-                {
-
-                    long address = bytesToLong(
-                        new byte[] {
-                            transactionBytes[1],
-                            transactionBytes[2],
-                            transactionBytes[3],
-                            transactionBytes[4],
-                            transactionBytes[5],
-                            transactionBytes[6],
-                            transactionBytes[7],
-                            transactionBytes[8],
-                        }
-                    );
-
-                    int length = bytesToInt(
-                        new byte[] {
-                            transactionBytes[9],
-                            transactionBytes[10],
-                            transactionBytes[11],
-                            transactionBytes[12]
-                        }
-                    );
-
-                    writeState(address, FREE_STATE);
-                    write(address, new byte[length]);
-                    setSegmentSize(address, length);
-                    writeState(address, FREE_STATE);
-
-                    writeTransactionalBytes(new byte[] {});
-                    break;
-                }
-                case ADD_END_TRANSACTION:
-                {
-                    int length = bytesToInt(
-                        new byte[] {
-                            transactionBytes[1],
-                            transactionBytes[2],
-                            transactionBytes[3],
-                            transactionBytes[4]
-                        }
-                    );
-
-                    long endAddress = this.findEnd();
-
-                    writeState(endAddress, FREE_STATE);
-                    write(endAddress, new byte[length]);
-                    writeState(endAddress, FREE_STATE);
-
-                    writeTransactionalBytes(new byte[] {});
-
-                }
-
             }
 
         }
@@ -352,14 +377,14 @@ public class SegmentedStreamingFile {
 
     /**
      * This method finds the last segment address which isn't allocated yet,
-     * assigns it a size and state and puts the data provided into it.
+     * assigns it a size and transitional state and puts the data provided into it.
      *
      * @param segment
      * @return
      * @throws WriteFailure
      * @throws ReadFailure
      */
-    public long writeToEnd(final InputStream segment) throws WriteFailure, ReadFailure {
+    public synchronized long writeToEnd(final InputStream segment) throws WriteFailure, ReadFailure {
 
         long address = lastKnownAddress; //shortcut to the last address if we already know it
 
@@ -426,6 +451,7 @@ public class SegmentedStreamingFile {
                         reference.setSegmentSize(address, totalRead);
 
                         this.lastKnownAddress = address;
+
                         return address; //return it in transitional state
                     }
                     catch (IOException we) { //seperating the try/catch to send a write failure here
@@ -450,6 +476,10 @@ public class SegmentedStreamingFile {
     /**
      * Searches the segmented file for a free segment to use.
      *
+     * it is important this method has a synchonized lock and should be the ONLY
+     * place that the state goes from FREE to TRANSITIONAL (besides validate data)
+     *
+     *
      * @param lengthRequired - size in bytes we need the segment to be
      * @return
      * @throws ReadFailure
@@ -457,13 +487,17 @@ public class SegmentedStreamingFile {
      * @throws NeedsSplitException - thrown if we reach the last item and still can't find anything
      * @throws SpaceFragementedException - thrown if we reach a framented group of segments that can be used by merging them
      */
-    public long getFreeSegment(final int lengthRequired) throws ReadFailure, OutOfSpaceException, NeedsSplitException, SpaceFragementedException {
+    public synchronized long getFreeSegment(final int lengthRequired) throws ReadFailure, OutOfSpaceException, NeedsSplitException, SpaceFragementedException, WriteFailure {
+
+        //this is the only method we should be writting transitional except for validate data.
 
         //check cache for one we already know of
         final Long foundEarly = reference.getSuitableSegment(lengthRequired);
 
         //return it if we know about it
         if(foundEarly != null) {
+
+            writeState(foundEarly, TRANSITIONAL_STATE);
             return foundEarly;
         }
 
@@ -541,13 +575,15 @@ public class SegmentedStreamingFile {
                 }
 
                 //free segment lets see if it fits
-                if(segmentState == FREE_STATE) {
+                if(segmentState == FREE_STATE) { //we have to synchronize this method on reads because we change this state
 
                     if(segmentLength > lengthRequired * 2) {//TODO make split size configurable.
+                        writeState(address, TRANSITIONAL_STATE); //TODO if we crash right now this is gone, needs cleanup in validate
                         throw new NeedsSplitException(address, segmentLength);
                     }
                     else if(segmentLength >= lengthRequired) {
                         //if this segment is big enough and free return the address
+                        writeState(address, TRANSITIONAL_STATE);
                         return address;
                     }
                     else {
@@ -574,6 +610,7 @@ public class SegmentedStreamingFile {
 
                             }
 
+                            writeState(freeSegments.get(0), TRANSITIONAL_STATE);
                             //throw exception with the info on the fragmented segments for merge.
                             throw new SpaceFragementedException(freeSegments.get(0), freeSegmentsTotalSize + accumulatedMetaSize);
                         }
@@ -721,7 +758,7 @@ public class SegmentedStreamingFile {
 
             }
             else {
-                throw new ReadFailure("segment at " + address + " is not bound it is " + segmentState);
+                return null;
             }
 
         }
@@ -734,39 +771,36 @@ public class SegmentedStreamingFile {
 
     }
 
-    /**
-     * //TODO make a reader/writer that's just for the transactions
-     *
-     * //TODO store the last address in the transaction space maybe. Needs to have a transaction of it's own to avoid corruption
-     * this may adversly affect the performance of scanning through the items and mapping them
-     * @param toWrite
-     * @throws WriteFailure
-     * @throws ReadFailure
-     */
-    public void writeTransactionalBytes(byte [] toWrite) throws WriteFailure, ReadFailure {
+    private static final int TRANSACTION_SEGMENT_SIZE = 24;
 
-        if(toWrite.length > START_OFFSET) {
-            throw new IllegalArgumentException("toWrite must be less than 1024 bytes");
+    private final Map<Long, Object> transactionLocks = new ConcurrentHashMap<>();
+
+    {
+        for(long i = 0; i < START_OFFSET; i += TRANSACTION_SEGMENT_SIZE) {
+            transactionLocks.put(i, new Object());
         }
+    }
 
-        if(toWrite.length < START_OFFSET) {
+    public void clearTransaction(long address) throws WriteFailure, ReadFailure {
 
-            final byte[] temp = new byte[START_OFFSET];
-
-            Arrays.fill(temp, (byte) 0); //fill it with zeros
-
-            System.arraycopy(toWrite, 0, temp, 0, toWrite.length);
-
-            toWrite = temp;
-
+        if(address > START_OFFSET -  TRANSACTION_SEGMENT_SIZE) {
+            throw new IllegalArgumentException("toWrite must be less than 1024 bytes");
         }
 
         final RandomAccessFile writeRandom = localAccess.getWriter();
 
         try {
 
-            writeRandom.seek(0); //seek to the state byte of the new segment that doesn't exist yet
-            writeRandom.write(toWrite, 0, toWrite.length);
+            writeRandom.seek(address); //seek to the state byte of the new segment that doesn't exist yet
+
+            final byte [] segment = new byte[TRANSACTION_SEGMENT_SIZE];
+//            Arrays.fill(segment, (byte) 0); //fill it with zeros
+
+            synchronized (transactionLocks.get(address)) {
+                writeRandom.write(segment, 0, segment.length);
+
+                transactionLocks.get(address).notifyAll(); //release everyone waiting to check all items
+            }
 
         }
         catch (IOException e) {
@@ -778,26 +812,112 @@ public class SegmentedStreamingFile {
         }
 
     }
+    /**
+     * //TODO make a reader/writer that's just for the transactions
+     *
+     * //TODO store the last address in the transaction space maybe. Needs to have a transaction of it's own to avoid corruption
+     * this may adversly affect the performance of scanning through the items and mapping them
+     * @param toWrite
+     * @throws WriteFailure
+     * @throws ReadFailure
+     */
+    public long writeTransactionalBytes(byte [] toWrite) throws WriteFailure, ReadFailure {
 
-    public byte[] readTransactionalBytes() throws ReadFailure {
+        if(toWrite.length > START_OFFSET) {
+            throw new IllegalArgumentException("toWrite must be less than 1024 bytes");
+        }
+
+//        if(toWrite.length == 0) {
+//
+//            final byte[] temp = new byte[START_OFFSET];
+//
+//            Arrays.fill(temp, (byte) 0); //fill it with zeros
+//
+//            System.arraycopy(toWrite, 0, temp, 0, toWrite.length);
+//
+//            toWrite = temp;
+//
+//        }
+
+        final RandomAccessFile writeRandom = localAccess.getWriter();
+
+        try {
+
+            long current = 0;
+
+            while(true) {
+
+                writeRandom.seek(current); //seek to the state byte of the new segment that doesn't exist yet
+
+                final byte segmentType;// = new byte[TRANSACTION_SEGMENT_SIZE];
+
+                synchronized (transactionLocks.get(current)) {
+
+                    segmentType = writeRandom.readByte();
+
+                    //if used go to the next segment
+                    switch (segmentType) {
+                        case WRITING_TRANSACTION:
+                        case ADD_END_TRANSACTION:
+                        case MERGE_TRANSACTION:
+                            //segment is in use, skip it
+                            current += TRANSACTION_SEGMENT_SIZE;
+                            break;
+                        default:
+                            writeRandom.seek(current);
+                            writeRandom.write(toWrite, 0, toWrite.length);
+                            return current;
+                    }
+
+                }
+
+                if(current >= START_OFFSET - TRANSACTION_SEGMENT_SIZE) {
+                    current = 0;
+
+                    synchronized (transactionLocks.get(current)) {
+                        writeRandom.seek(current);
+                        final byte firstByte = writeRandom.readByte();
+
+                        if(firstByte != 0) {
+                            transactionLocks.get(current).wait();
+                        }
+
+                    }
+
+                }
+
+            }
+
+        }
+        catch (IOException | InterruptedException e) {
+            logger.error("Failed ", e);
+            throw new WriteFailure("failed to write " + e.getMessage());
+        }
+        finally {
+            localAccess.giveWriter(writeRandom);
+        }
+
+    }
+
+    public byte[] readTransactionalBytes(long address) throws ReadFailure {
 
         final RandomAccessFile readRandom = localAccess.getReader();
 
         try {
 
-            if(readRandom.length() < START_OFFSET) {
+            if(readRandom.length() < address + TRANSACTION_SEGMENT_SIZE) { //return nulls if the file isn't big enough
 
-                final byte[] returnVal = new byte[START_OFFSET];
+                final byte[] returnVal = new byte[TRANSACTION_SEGMENT_SIZE];
                 Arrays.fill(returnVal, (byte) 0);
 
                 return returnVal;
 
             }
 
-            readRandom.seek(0);
+            readRandom.seek(address);
 
             //read in the size, fill size and type
-            final byte [] toRead =  new byte[START_OFFSET];
+            final byte [] toRead =  new byte[TRANSACTION_SEGMENT_SIZE];
 
             readRandom.readFully(toRead, 0, toRead.length);
 
@@ -850,6 +970,33 @@ public class SegmentedStreamingFile {
         }
         catch (IOException e) {
             throw new ReadFailure("unknown read error " + e.getMessage(), e);
+        }
+        finally {
+            localAccess.giveReader(readRandom);
+        }
+
+    }
+
+    public int getSegmentLength(long address) throws ReadFailure {
+
+        final RandomAccessFile readRandom = localAccess.getReader();
+
+        try {
+
+            final byte [] intBytes = new byte[SEGMENT_LENGTH_BYTES_COUNT];
+
+            readRandom.seek(address); //seek to the state byte of the new segment that doesn't exist yet
+            readRandom.readFully(intBytes);
+
+            final int segmentSize = bytesToInt(intBytes);
+
+            reference.setSegmentSize(address, segmentSize);
+
+            return segmentSize;
+
+        }
+        catch (IOException e) {
+            throw new ReadFailure("failed to write " + e.getMessage());
         }
         finally {
             localAccess.giveReader(readRandom);
@@ -1033,7 +1180,7 @@ public class SegmentedStreamingFile {
 
             final RandomAccessFile writer = localAccess.getWriter();
 
-            writer.setLength(0);
+            writer.setLength(START_OFFSET);
         } catch (FileNotFoundException e) {
             throw new ReadFailure("file doesn't exist", e);
         } catch (IOException e) {

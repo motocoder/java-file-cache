@@ -98,8 +98,8 @@ public class CacheCompareTest {
         }
     }
 
-    private final int MULTI_WRITES = 1000;
-    private final int MULTI_READS = 1;
+    private final int MULTI_WRITES = 100;
+    private final int MULTI_READS = 1000;
     private final int THREADS = 200;
 
     private boolean flag = false;
@@ -109,8 +109,8 @@ public class CacheCompareTest {
 
         final ExecutorService pool = Executors.newFixedThreadPool(THREADS);
 
-        final File tempFolder = new File("./target/test-files/" + UUID.randomUUID().toString() + "temp-data");
-        final File dataFolder = new File("./target/test-files/" + UUID.randomUUID().toString() + "data");
+        final File tempFolder = new File("./target/test-files/" + UUID.randomUUID() + "temp-data");
+        final File dataFolder = new File("./target/test-files/" + UUID.randomUUID() + "data");
 
         deleteRoot(tempFolder);
         deleteRoot(dataFolder);

@@ -77,7 +77,7 @@ public class BytesFileHashTest {
     @Test
     public void testRealHashing() throws ReadFailure, WriteFailure, IOException {
 
-        final File root = new File(cacheDir, "./temp-hash/");
+        final File root = new File(cacheDir, "./temp-hash-" + UUID.randomUUID() + "/");
         final File tempFolder = new File(cacheDir, "./temp-data");
         final File dataFolder = new File(cacheDir, "./segmentData");
 

@@ -19,7 +19,7 @@ public class HashLocksTest {
     boolean flag1 = false;
     boolean flag3 = false;
 
-    private static final boolean allWritesBlockReads = true;
+    private static final boolean allWritesBlockReads = false;
 
     @Test
     public void testLock() throws InterruptedException {
@@ -309,7 +309,7 @@ public class HashLocksTest {
 
         assertEquals(0, stopped.get());
 
-        assertFalse(flag1);
+        assertTrue(flag1);
 
     }
 

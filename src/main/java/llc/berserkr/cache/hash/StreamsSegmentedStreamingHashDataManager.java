@@ -45,17 +45,6 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
     @Override
     public long setBlobs(long blobIndex, InputStream blobs) throws WriteFailure, ReadFailure {
 
-        if(blobIndex >= 0) {
-
-            startWritingTransaction(segmentedFile, blobIndex);
-
-            //delete the previous item
-            segmentedFile.writeState(blobIndex, SegmentedStreamingFile.FREE_STATE);
-
-            endTransactions(segmentedFile);
-
-        }
-
         //We have to know the size of the data written in order to assign it to a segmented item
         //to do this we write it to temporary file then read it back and write it into the segment.
         //I don't think there's any other way to do this, this ultimately is a big limitation of the
@@ -78,10 +67,38 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
 
         try {
 
-            //find a free segment and write the data into it.
-            long free = segmentedFile.getFreeSegment(length);
+            final long free;
 
-            startWritingTransaction(segmentedFile, free);
+            if(blobIndex >= 0) {
+
+                int currentLength = segmentedFile.getSegmentLength(blobIndex);
+
+                if(length <= currentLength) {
+
+                    //we can re-use the segment we were already in
+                    free = blobIndex;
+
+                }
+                else {
+
+                    long transArress = startWritingTransaction(segmentedFile, blobIndex);
+
+                    //delete the previous item
+                    segmentedFile.writeState(blobIndex, SegmentedStreamingFile.FREE_STATE);
+
+                    endTransactions(segmentedFile, transArress);
+
+                    //find a free segment and write the data into it.
+                    free = segmentedFile.getFreeSegment(length);
+                }
+
+            }
+            else {
+                //find a free segment and write the data into it.
+                free = segmentedFile.getFreeSegment(length);
+            }
+
+            final long transAddress = startWritingTransaction(segmentedFile, free);
 
             try(final FileInputStream fis = new FileInputStream(tempFile)) {
                 segmentedFile.write(free, fis);
@@ -95,7 +112,7 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
 
             segmentedFile.writeState(free, SegmentedStreamingFile.BOUND_STATE);
 
-            endTransactions(segmentedFile);
+            endTransactions(segmentedFile, transAddress);
 
             return free;
         }
@@ -116,7 +133,7 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
             final long address = e.getAddress();
             final long splitAddress = address + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + split1;
 
-            startWritingTransaction(segmentedFile, address);
+            final long transAddress = startWritingTransaction(segmentedFile, address);
 
             segmentedFile.setSegmentSize(splitAddress, split2 - (SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT));
             segmentedFile.writeState(splitAddress, SegmentedStreamingFile.FREE_STATE);
@@ -135,13 +152,13 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
 
             segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
 
-            endTransactions(segmentedFile);
+            endTransactions(segmentedFile, transAddress);
 
             return e.getAddress();
         }
         catch (final SpaceFragementedException e) {
 
-            startMergeTransaction(segmentedFile, e.getAddress(), e.getSegmentSize());
+            final long transAddress = startMergeTransaction(segmentedFile, e.getAddress(), e.getSegmentSize());
 
             segmentedFile.setSegmentSize(e.getAddress(), e.getSegmentSize());
 
@@ -157,13 +174,13 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
 
             segmentedFile.writeState(e.getAddress(), SegmentedStreamingFile.BOUND_STATE);
 
-            endTransactions(segmentedFile);
+            endTransactions(segmentedFile, transAddress);
 
             return e.getAddress();
         }
         catch (OutOfSpaceException e) {
 
-            startAddTransaction(segmentedFile, length);
+            final long transAddress = startAddTransaction(segmentedFile, length);
 
             try(final FileInputStream fis = new FileInputStream(tempFile)) {
 
@@ -178,7 +195,7 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
                 throw new WriteFailure("failed to write temp file", e2);
             }
             finally {
-                endTransactions(segmentedFile);
+                endTransactions(segmentedFile, transAddress);
                 tempFile.delete();
             }
 
@@ -188,19 +205,19 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
 
     @Override
     public void eraseBlobs(long blobIndex) throws WriteFailure, ReadFailure {
-        startWritingTransaction(segmentedFile, blobIndex);
+
+        final long transAddress = startWritingTransaction(segmentedFile, blobIndex);
 
         //delete the previous item
         segmentedFile.writeState(blobIndex, SegmentedStreamingFile.FREE_STATE);
 
-        endTransactions(segmentedFile);
+        endTransactions(segmentedFile, transAddress);
+
     }
 
     @Override
     public void clear() throws WriteFailure, ReadFailure {
         segmentedFile.clear();
     }
-
-
 
 }

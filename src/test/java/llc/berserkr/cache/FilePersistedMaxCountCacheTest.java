@@ -349,15 +349,12 @@ public class FilePersistedMaxCountCacheTest {
 	@Test
 	public void testPersistedPart() throws IOException {
 
-		Random random = new Random();
-		String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-		File root2 = new File("./target/test-files/temp" + appendix + "/");
+		File root2 = new File("./target/test-files/temp" + UUID.randomUUID() + "/");
 
 		deleteRoot(root2);
 
 		final File dataFolder = new File(root2, "data");
-		final File tempFolder = new File(root2, "temp");
 		final File persistingFolder = new File(root2, "persisting");
 
 		BytesFileCache diskCache = new BytesFileCache(dataFolder);

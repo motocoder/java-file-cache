@@ -3,10 +3,6 @@ package llc.berserkr.cache.hash;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.Set;
-
 /**
  * Reading and writing operations can happen simultaneous as long as they don't conflict at several points.
  *
@@ -38,7 +34,7 @@ public class HashLocks {
     //TODO rework the adding segments to the end to allow multiple writes.
     //if you do all that you should be able to get rid of the global write lock which will drastically
     //increase multi threaded performance.
-    private final SharedWriteLocks writeLocks;
+//    private final SharedWriteLocks writeLocks;
 
     public enum LockType {READER, WRITER}
 
@@ -46,71 +42,77 @@ public class HashLocks {
     private int readers = 0;
 
     public HashLocks(SharedWriteLocks writeLocks) {
-        this.writeLocks = writeLocks;
+
+//        this.writeLocks = writeLocks;
     }
 
-    public void getLock(final LockType lockType) throws InterruptedException {
+    public synchronized void getLock(final LockType lockType) throws InterruptedException {
 
         while(true) {
 
-            synchronized(writeLocks) {
+//            synchronized(writeLocks) {
 
-                if(writers < 0 || readers < 0 || writeLocks.peekLock() < 0) {
-                    throw new IllegalStateException("someone released too many locks " + writeLocks.peekLock() + " " + readers + " " + writers);
+                if(writers < 0 || readers < 0 ) {//|| writeLocks.peekLock() < 0) {
+                    throw new IllegalStateException("someone released too many locks " + /*writeLocks.peekLock() + " " +*/ readers + " " + writers);
                 }
 
                 switch (lockType) {
                     case READER: {
                         //as long as there's no writers, good to go
-                        if (writers == 0 && writeLocks.peekLock() == 0) {
+                        if (writers == 0 ) { //&& writeLocks.peekLock() == 0) {
                             //reader doesn't care about other writers just our own
-                            writeLocks.getLock(HashLocks.LockType.READER);
+//                            writeLocks.getLock(HashLocks.LockType.READER);
                             readers++; //lock it for writers
                             return;
                         } else {
                             //someone is writing just wait
-                            writeLocks.wait();
+//                            writeLocks.wait();
+                            wait();
                         }
                         break;
                     }
                     case WRITER: {
 
-                        if (writers == 0 && readers == 0 && writeLocks.peekLock() == 0) {
-                            writeLocks.getLock(LockType.WRITER);
+                        if (writers == 0 && readers == 0) {// && writeLocks.peekLock() == 0) {
+//                            writeLocks.getLock(LockType.WRITER);
                             writers++; // lock it for readers and writers
                             return;
                         } else {
                             //if global locks aren't blocked but others are
-                            writeLocks.wait();
+//                            writeLocks.wait();
+                            wait();
                         }
                         break;
                     }
                 }
-            }
+//            }
         }
     }
 
-    public void releaseLock(LockType lockType) {
+    public synchronized void releaseLock(LockType lockType) {
 
-        synchronized(writeLocks) {
+//        synchronized(writeLocks) {
             switch (lockType) {
                 case READER: {
                     readers--;
-                    if((readers == 0 && writeLocks.peekLock() == 0 && writers == 0)) {
-                        writeLocks.notify();
+                    if((readers == 0 && /*writeLocks.peekLock() == 0 && */ writers == 0)) {
+//                        writeLocks.notify();
+                        notify();
                     }
                     break;
                 }
 
                 case WRITER: {
                     writers--;
-                    writeLocks.releaseLock(); //only write releases global lock
-                    if((writeLocks.peekLock() == 0 && writers == 0)) {
-                        writeLocks.notifyAll();
+//                    writeLocks.releaseLock(); //only write releases global lock
+//                    if((writeLocks.peekLock() == 0 &&
+                            if(writers == 0) {
+//                        writeLocks.notifyAll();
+                        notify();
                     }
                     break;
                 }
-            }
+//            }
         }
     }
 

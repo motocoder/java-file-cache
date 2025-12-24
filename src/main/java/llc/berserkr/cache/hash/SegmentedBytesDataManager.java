@@ -44,30 +44,51 @@ public class SegmentedBytesDataManager implements HashDataManager<byte [], byte 
 
     public long setBlobs(long blobIndex, Set<Pair<byte[], byte[]>> blobs) throws WriteFailure, ReadFailure {
 
-        if(blobIndex >= 0) {
-
-            startWritingTransaction(segmentedFile, blobIndex);
-
-            //delete the previous item
-            segmentedFile.writeState(blobIndex, SegmentedStreamingFile.FREE_STATE);
-
-            endTransactions(segmentedFile);
-
-        }
-
         final byte [] pairData = getPairData(blobs);
+
+        final long free;
 
         try {
 
-            //find a free segment and write the data into it.
-            long free = segmentedFile.getFreeSegment(pairData.length);
+            if(blobIndex >= 0) {
 
-            startWritingTransaction(segmentedFile, free);
+                int currentLength = segmentedFile.getSegmentLength(blobIndex);
+
+                if(pairData.length <= currentLength) {
+
+                    //we can re-use the segment we were already in
+                    free = blobIndex;
+
+                }
+                else {
+
+                    final long transAddress = startWritingTransaction(segmentedFile, blobIndex);
+
+                    //delete the previous item
+                    segmentedFile.writeState(blobIndex, SegmentedStreamingFile.FREE_STATE);
+
+                    endTransactions(segmentedFile, transAddress);
+
+
+                    //find a free segment and write the data into it.
+                    free = segmentedFile.getFreeSegment(pairData.length);
+
+                }
+
+            }
+            else {
+
+                //find a free segment and write the data into it.
+                free = segmentedFile.getFreeSegment(pairData.length);
+
+            }
+
+            final long transAddress = startWritingTransaction(segmentedFile, free);
 
             segmentedFile.write(free, pairData);
             segmentedFile.writeState(free, SegmentedStreamingFile.BOUND_STATE);
 
-            endTransactions(segmentedFile);
+            endTransactions(segmentedFile, transAddress);
 
             return free;
         }
@@ -83,7 +104,7 @@ public class SegmentedBytesDataManager implements HashDataManager<byte [], byte 
             final long address = e.getAddress();
             final long splitAddress = address + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + split1;
 
-            startWritingTransaction(segmentedFile, address);
+            final long transAddress = startWritingTransaction(segmentedFile, address);
 
             segmentedFile.setSegmentSize(splitAddress, split2 - (SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT));
             segmentedFile.writeState(splitAddress, SegmentedStreamingFile.FREE_STATE);
@@ -92,25 +113,25 @@ public class SegmentedBytesDataManager implements HashDataManager<byte [], byte 
             segmentedFile.write(address, pairData);
             segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
 
-            endTransactions(segmentedFile);
+            endTransactions(segmentedFile, transAddress);
 
             return e.getAddress();
         }
         catch (final SpaceFragementedException e) {
 
-            startMergeTransaction(segmentedFile, e.getAddress(), e.getSegmentSize());
+            final long transAddress = startMergeTransaction(segmentedFile, e.getAddress(), e.getSegmentSize());
 
             segmentedFile.setSegmentSize(e.getAddress(), e.getSegmentSize());
             segmentedFile.write(e.getAddress(), pairData);
             segmentedFile.writeState(e.getAddress(), SegmentedStreamingFile.BOUND_STATE);
 
-            endTransactions(segmentedFile);
+            endTransactions(segmentedFile, transAddress);
 
             return e.getAddress();
         }
         catch (OutOfSpaceException e) {
 
-            startAddTransaction(segmentedFile, pairData.length);
+            final long transAddress = startAddTransaction(segmentedFile, pairData.length);
 
             try(final InputStream is = new ByteArrayInputStream(pairData)) {
                 //no free segments, add to the end of the segment file
@@ -118,7 +139,8 @@ public class SegmentedBytesDataManager implements HashDataManager<byte [], byte 
 
                 segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
 
-                endTransactions(segmentedFile);
+                endTransactions(segmentedFile, transAddress);
+
 
                 return address;
             } catch (IOException ex) {
@@ -129,12 +151,12 @@ public class SegmentedBytesDataManager implements HashDataManager<byte [], byte 
     }
 
     public void eraseBlobs(long blobIndex) throws WriteFailure, ReadFailure {
-        startWritingTransaction(segmentedFile, blobIndex);
+        final long transAddress = startWritingTransaction(segmentedFile, blobIndex);
 
         //delete the previous item
         segmentedFile.writeState(blobIndex, SegmentedStreamingFile.FREE_STATE);
 
-        endTransactions(segmentedFile);
+        endTransactions(segmentedFile, transAddress);
     }
 
     public void clear() throws WriteFailure, ReadFailure {

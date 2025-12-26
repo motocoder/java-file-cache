@@ -8,6 +8,8 @@ import llc.berserkr.cache.hash.SegmentedStreamingFile;
 import llc.berserkr.cache.hash.SegmentedBytesDataManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -21,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 public class SegmentedFileTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(SegmentedFileTest.class);
 
     public static File tempDir = new File("./file-cache-temp");
     public static File segmentFile = new File(tempDir,"./segment");
@@ -85,7 +89,7 @@ public class SegmentedFileTest {
 
         }
 
-        System.out.println("junkBytes: " + junkBytes.size() + " " + (System.currentTimeMillis() - start));
+        logger.info("junkBytes: " + junkBytes.size() + " " + (System.currentTimeMillis() - start));
 
         final List<Long> addressesUsed = new ArrayList<>();
 
@@ -100,7 +104,7 @@ public class SegmentedFileTest {
 
         }
 
-        System.out.println("data written : " + addressesUsed.size() + " " + (System.currentTimeMillis() - start));
+        logger.info("data written : " + addressesUsed.size() + " " + (System.currentTimeMillis() - start));
 
         final Set<byte []> wasWrote = new HashSet<>();
 
@@ -110,18 +114,18 @@ public class SegmentedFileTest {
             wasWrote.add(convertInputStreamToBytes(segmentedFile.readSegment(address)));
         }
 
-        System.out.println("data read : " + wasWrote.size() + " " + (System.currentTimeMillis() - start));
+        logger.info("data read : " + wasWrote.size() + " " + (System.currentTimeMillis() - start));
 
         assertEquals(junkBytes.size(), wasWrote.size());
 
         for(final byte [] junk : junkBytes) {
-            System.out.println("junk length " + junk.length);
-            System.out.println("junk " + new String(junk));
+            logger.info("junk length " + junk.length);
+            logger.info("junk " + new String(junk));
         }
 
         for(final byte [] wrote : wasWrote) {
-            System.out.println("wrote length " + wrote.length);
-            System.out.println("wrote " + new String(wrote));
+            logger.info("wrote length " + wrote.length);
+            logger.info("wrote " + new String(wrote));
         }
 
         //check what we wrote vs what we read
@@ -148,14 +152,14 @@ public class SegmentedFileTest {
 
         }
 
-        System.out.println("grabbed half the addresses " + halfAddresses.size());
+        logger.info("grabbed half the addresses " + halfAddresses.size());
 
         //deletes the data by marking it free
         for(final long address : halfAddresses.keySet()) {
             segmentedFile.writeState(address, SegmentedStreamingFile.FREE_STATE);
         }
 
-        System.out.println("deleted " + halfAddresses.size());
+        logger.info("deleted " + halfAddresses.size());
 
         final Set<byte []> writeThese = new HashSet<>(halfAddresses.values());
 
@@ -201,8 +205,8 @@ public class SegmentedFileTest {
 
         }
 
-        System.out.println("wrote to free " + wroteToFree.size() + " fragmentedCount " + fragmentedCount + " wroteToEnd " + wroteToEnd.size());
-        System.out.println("end " + (System.currentTimeMillis() - start));
+        logger.info("wrote to free " + wroteToFree.size() + " fragmentedCount " + fragmentedCount + " wroteToEnd " + wroteToEnd.size());
+        logger.info("end " + (System.currentTimeMillis() - start));
     }
 
     @Test
@@ -297,7 +301,7 @@ public class SegmentedFileTest {
 
             segmentedFile.validateData();
 
-            System.out.println("reading " + address);
+            logger.info("reading " + address);
 
             segmentState = segmentedFile.readSegmentState(address);
 

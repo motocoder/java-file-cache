@@ -6,7 +6,6 @@ import llc.berserkr.cache.converter.StringSizeConverter;
 import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.util.StopWatch;
 import llc.berserkr.cache.util.StringUtilities;
-import org.apache.log4j.BasicConfigurator;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +25,6 @@ public class FilePersistedExpiringCacheTest {
 
 	private static final Logger logger = LoggerFactory.getLogger(FilePersistedExpiringCacheTest.class);
 
-	static {
-        BasicConfigurator.configure();
-    }
 	@Test
 	public void FilePersistedExpiringCacheMultithreadedTest() throws IOException {
 

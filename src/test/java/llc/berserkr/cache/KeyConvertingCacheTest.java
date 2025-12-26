@@ -8,6 +8,8 @@ import llc.berserkr.cache.hash.SegmentedBytesDataManager;
 import llc.berserkr.cache.loader.DefaultResourceLoader;
 import llc.berserkr.cache.loader.ResourceLoader;
 import org.junit.jupiter.api.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.InputStream;
@@ -19,6 +21,8 @@ import static llc.berserkr.cache.util.DataUtils.longToByteArray;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class KeyConvertingCacheTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(KeyConvertingCacheTest.class);
 
 	private static ResourceLoader<String, byte[]> resourceLoader;
 	private static KeyConvertingCache<Long, String, byte[]> testCacheWithResourceLoader;
@@ -118,14 +122,12 @@ public class KeyConvertingCacheTest {
 		try {
 			assertTrue(testCacheWithFileCache.exists(1L));
 		} catch (ResourceException e) {
-			System.out.println(e);
 			fail();
 		}
 		// Make sure it's not just nodding its head...
 		try {
 			assertFalse(testCacheWithFileCache.exists(3L));
 		} catch (ResourceException e) {
-			System.out.println(e);
 			fail();
 		}
 
@@ -136,7 +138,6 @@ public class KeyConvertingCacheTest {
 			String resultStr = new String(result);
 			assertTrue(resultStr.equals(TEST_VAL1));
 		} catch (Exception e){
-			System.out.println(e);
 			fail();
 		}
 		// and a negative get().
@@ -144,7 +145,6 @@ public class KeyConvertingCacheTest {
 			byte[] result = testCacheWithFileCache.get(3L);
 			assertNull(result);
 		} catch (Exception e){
-			System.out.println(e);
 			fail();
 		}
 
@@ -180,14 +180,12 @@ public class KeyConvertingCacheTest {
 		try {
 			assertTrue(testCacheWithResourceLoader.exists(1L));
 		} catch (ResourceException e) {
-			System.out.println(e);
 			fail();
 		}
 		// Make sure it's not just nodding its head...
 		try {
 			assertFalse(testCacheWithResourceLoader.exists(3L));
 		} catch (ResourceException e) {
-			System.out.println(e);
 			fail();
 		}
 
@@ -198,7 +196,6 @@ public class KeyConvertingCacheTest {
 			String resultStr = new String(result);
 			assertTrue(resultStr.equals(TEST_VAL1));
 		} catch (Exception e){
-			System.out.println(e);
 			fail();
 		}
 		// and a negative get().
@@ -206,7 +203,6 @@ public class KeyConvertingCacheTest {
 			byte[] result = testCacheWithResourceLoader.get(3L);
 			assertNull(result);
 		} catch (Exception e){
-			System.out.println(e);
 			fail();
 		}
 
@@ -227,7 +223,6 @@ public class KeyConvertingCacheTest {
 			assertTrue(new String(results.get(2)).equals(TEST_VAL2));
 			assertTrue(results.get(3) == null);
 		} catch (ResourceException e) {
-			System.out.println(e);
 			fail();
 		}
 	}
@@ -244,9 +239,9 @@ public class KeyConvertingCacheTest {
 	void logResults(List<byte[]> results) {
 		for (byte[] result: results) {
 			if (result == null){
-				System.out.println("null");
+                logger.info("null");
 			} else {
-				System.out.println(new String(result));
+                logger.info(new String(result));
 			}
 		}
 	}

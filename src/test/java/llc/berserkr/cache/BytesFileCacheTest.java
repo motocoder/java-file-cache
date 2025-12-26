@@ -4,7 +4,6 @@ import llc.berserkr.cache.converter.*;
 import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.util.StreamUtil;
 import llc.berserkr.cache.util.StringUtilities;
-import org.apache.log4j.BasicConfigurator;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,11 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class BytesFileCacheTest {
 
     private static final Logger logger = LoggerFactory.getLogger(BytesFileCacheTest.class);
-    
-    static {
-    	BasicConfigurator.configure();
-    }
-	
+
 	@Test 
 	public void universalTest() {
 
@@ -470,9 +465,9 @@ public class BytesFileCacheTest {
 		        cache.put(key, value.getBytes());
 		        
 		        String returnValue = new String(cache.get(key));
-			
-		        System.out.println(returnValue);
-		        System.out.println(value);
+
+                logger.info(returnValue);
+                logger.info(value);
 		        
 		        assertEquals(value ,returnValue);
 		        assertEquals(cache.exists(key), true);

@@ -5,7 +5,6 @@ import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.hash.SegmentedBytesDataManager;
 import llc.berserkr.cache.util.StreamUtil;
 import llc.berserkr.cache.util.StringUtilities;
-import org.apache.log4j.BasicConfigurator;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,10 +25,6 @@ import static org.junit.jupiter.api.Assertions.*;
 public class StreamFileCacheTest {
 
     private static final Logger logger = LoggerFactory.getLogger(StreamFileCacheTest.class);
-    
-    static {
-    	BasicConfigurator.configure();
-    }
 	
 	@Test 
 	public void universalTest() {
@@ -232,7 +227,7 @@ public class StreamFileCacheTest {
 	@Test 
 	public void multiThreadedTest() throws IOException {
 
-        System.out.println("multi1");
+        logger.info("multi1");
 		
 		final ExecutorService pool = Executors.newFixedThreadPool(100);
 
@@ -475,9 +470,9 @@ public class StreamFileCacheTest {
 		        cache.put(key, new ByteArrayInputStream(value.getBytes()));
 		        
 		        String returnValue = new String(convertInputStreamToBytes(cache.get(key)));
-			
-		        System.out.println(returnValue);
-		        System.out.println(value);
+
+                logger.info(returnValue);
+                logger.info(value);
 		        
 		        assertEquals(value ,returnValue);
 		        assertEquals(cache.exists(key), true);

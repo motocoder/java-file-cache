@@ -45,7 +45,7 @@ public class LocalRandomAccess {
 
         if(localWriter.get() == null) {
             try {
-                localWriter.set(new RandomAccessFile(file, "rws"));
+                localWriter.set(new RandomAccessFile(file, "rws")); //rws vs rwd doesnt seem to change much.
             } catch (FileNotFoundException e) {
                 throw new RuntimeException("bad hash file could not write to it");
             }

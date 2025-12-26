@@ -6,7 +6,6 @@ import llc.berserkr.cache.converter.ReverseConverter;
 import llc.berserkr.cache.converter.SerializingConverter;
 import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.util.StringUtilities;
-import org.apache.log4j.BasicConfigurator;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,10 +28,6 @@ public class FilePersistedMaxCountCacheTest {
 	private static final Logger logger = LoggerFactory.getLogger(FilePersistedMaxCountCacheTest.class);
 
 	private static final byte[] TEN_BYTES = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-
-	static {
-		BasicConfigurator.configure();
-	}
 
 	boolean removed = false;
 

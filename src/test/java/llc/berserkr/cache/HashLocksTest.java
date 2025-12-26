@@ -3,6 +3,8 @@ package llc.berserkr.cache;
 import llc.berserkr.cache.hash.HashLocks;
 import llc.berserkr.cache.testutil.SynchronizedCounter;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,6 +16,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class HashLocksTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(HashLocksTest.class);
 
     boolean flag2 = false;
     boolean flag1 = false;
@@ -326,6 +330,6 @@ public class HashLocksTest {
     public void testBS() {
 
         int alpha = (int) ((Math.min(System.currentTimeMillis() - (System.currentTimeMillis() - 200), 300) / 300f) * 255);
-        System.out.println("alpha = " + alpha);
+        logger.info("alpha = " + alpha);
     }
 }

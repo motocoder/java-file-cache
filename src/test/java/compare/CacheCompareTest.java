@@ -246,13 +246,13 @@ public class CacheCompareTest {
                                     stopWatch.stop();
                                     if(stopWatch.getTime() > writeLatency.get()) {
                                         writeLatency.set((int) stopWatch.getTime());
-                                        System.out.println("write latency " + stopWatch.getTime());
+                                        logger.info("write latency " + stopWatch.getTime());
                                     }
 
                                     int writes = countWrites.incrementAndGet();
 
                                     if(writes % 10000 == 0) {
-                                        System.out.println("writes " + writes);
+                                        logger.info("writes " + writes);
                                     }
 
                                     for(int j = 0; j < MULTI_READS; j++) {
@@ -264,13 +264,13 @@ public class CacheCompareTest {
                                         stopWatch.stop();
                                         if(stopWatch.getTime() > readLatency.get()) {
                                             readLatency.set((int) stopWatch.getTime());
-                                            System.out.println("read latency " + stopWatch.getTime());
+                                            logger.info("read latency " + stopWatch.getTime());
                                         }
 
                                         final int reads = countReads.incrementAndGet();
 
                                         if(reads % 1000000 == 0) {
-                                            System.out.println("reads " + reads);
+                                            logger.info("reads " + reads);
                                         }
 
                                         assertEquals(value, returnValue);
@@ -402,7 +402,7 @@ public class CacheCompareTest {
             hashCache.put(entry.getKey().getBytes(StandardCharsets.UTF_8), new ByteArrayInputStream(entry.getValue().getBytes(StandardCharsets.UTF_8)));
         }
 
-        System.out.println("data written " + (System.currentTimeMillis() - startTime));
+        logger.info("data written " + (System.currentTimeMillis() - startTime));
 
         final Map<String, String> readData = new HashMap<>();
 
@@ -420,7 +420,7 @@ public class CacheCompareTest {
         assertEquals(readData.size(), data.size());
         assertEquals(readData, data);
 
-        System.out.println("test time: " + (System.currentTimeMillis() - startTime));
+        logger.info("test time: " + (System.currentTimeMillis() - startTime));
 
     }
 
@@ -443,7 +443,7 @@ public class CacheCompareTest {
 
         }
 
-        System.out.println("data written " + (System.currentTimeMillis() - startTime));
+        logger.info("data written " + (System.currentTimeMillis() - startTime));
 
         final Map<String, String> readData = new HashMap<>();
 
@@ -465,6 +465,6 @@ public class CacheCompareTest {
         assertEquals(readData.size(), data.size());
         assertEquals(readData, data);
 
-        System.out.println("test time: " + (System.currentTimeMillis() - startTime));
+        logger.info("test time: " + (System.currentTimeMillis() - startTime));
     }
 }

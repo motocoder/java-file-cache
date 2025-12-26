@@ -4,7 +4,6 @@ import llc.berserkr.cache.exception.ReadFailure;
 import llc.berserkr.cache.exception.WriteFailure;
 import llc.berserkr.cache.hash.FileHash;
 import llc.berserkr.cache.hash.SegmentedBytesDataManager;
-import org.apache.log4j.BasicConfigurator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -20,10 +19,6 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class BytesFileHashTest {
-    
-    static {
-        BasicConfigurator.configure();
-    }
     
     private static final Logger logger = LoggerFactory.getLogger(BytesFileHashTest.class);
 

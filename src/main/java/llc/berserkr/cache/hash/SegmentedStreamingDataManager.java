@@ -1,6 +1,5 @@
 package llc.berserkr.cache.hash;
 
-import llc.berserkr.cache.data.Pair;
 import llc.berserkr.cache.exception.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,21 +16,21 @@ import static llc.berserkr.cache.util.DataUtils.copyAndCount;
  * It also maintains the transaction lifecycle of reads/and writes.
  *
  */
-public class StreamsSegmentedStreamingHashDataManager implements SingleValueHashDataManager<byte [], InputStream> {
+public class SegmentedStreamingDataManager implements SingleValueHashDataManager<byte [], InputStream> {
 
-    private static final Logger logger = LoggerFactory.getLogger(StreamsSegmentedStreamingHashDataManager.class);
+    private static final Logger logger = LoggerFactory.getLogger(SegmentedStreamingDataManager.class);
 
-    private final SegmentedStreamingFile segmentedFile;
+    private final SegmentedFile segmentedFile;
     private final File tempDirectory;
 
-    public StreamsSegmentedStreamingHashDataManager(File segmentFile, File tempDirectory) {
+    public SegmentedStreamingDataManager(File segmentFile, File tempDirectory) {
 
         tempDirectory.mkdirs();
 
         if(!tempDirectory.isDirectory() || !tempDirectory.exists()) {
             throw new IllegalArgumentException("temp directory is bad");
         }
-        this.segmentedFile = new SegmentedStreamingFile(segmentFile);
+        this.segmentedFile = new SegmentedFile(segmentFile);
         this.tempDirectory = tempDirectory;
     }
 
@@ -49,6 +48,11 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
         //to do this we write it to temporary file then read it back and write it into the segment.
         //I don't think there's any other way to do this, this ultimately is a big limitation of the
         //streaming cache vs one doing it all in byte arrays. That's why we have the option for both.
+        //
+        //this could be overcome by adding a segment linking functionality to the SegmentedStreamingFile
+        //It would require a link to the next segment if this inputstreams write causes it to
+        //overflow a segment it's written to. This is the only way to know the segment length after
+        //writting it from a stream.
         final int length;
 
         final File tempFile = new File(tempDirectory, UUID.randomUUID().toString());
@@ -84,7 +88,7 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
                     long transArress = startWritingTransaction(segmentedFile, blobIndex);
 
                     //delete the previous item
-                    segmentedFile.writeState(blobIndex, SegmentedStreamingFile.FREE_STATE);
+                    segmentedFile.writeState(blobIndex, SegmentedFile.FREE_STATE);
 
                     endTransactions(segmentedFile, transArress);
 
@@ -110,7 +114,7 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
                 tempFile.delete();
             }
 
-            segmentedFile.writeState(free, SegmentedStreamingFile.BOUND_STATE);
+            segmentedFile.writeState(free, SegmentedFile.BOUND_STATE);
 
             endTransactions(segmentedFile, transAddress);
 
@@ -131,12 +135,12 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
             //after it is complete the last operation is to set the split segment to the new size and
             //mark it bound to the new data
             final long address = e.getAddress();
-            final long splitAddress = address + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + split1;
+            final long splitAddress = address + SegmentedFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedFile.SEGMENT_LENGTH_BYTES_COUNT + split1;
 
             final long transAddress = startWritingTransaction(segmentedFile, address);
 
-            segmentedFile.setSegmentSize(splitAddress, split2 - (SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT));
-            segmentedFile.writeState(splitAddress, SegmentedStreamingFile.FREE_STATE);
+            segmentedFile.setSegmentSize(splitAddress, split2 - (SegmentedFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedFile.SEGMENT_LENGTH_BYTES_COUNT));
+            segmentedFile.writeState(splitAddress, SegmentedFile.FREE_STATE);
 
             segmentedFile.setSegmentSize(address, split1);
 
@@ -150,7 +154,7 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
                 tempFile.delete();
             }
 
-            segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
+            segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
 
             endTransactions(segmentedFile, transAddress);
 
@@ -172,7 +176,7 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
                 tempFile.delete();
             }
 
-            segmentedFile.writeState(e.getAddress(), SegmentedStreamingFile.BOUND_STATE);
+            segmentedFile.writeState(e.getAddress(), SegmentedFile.BOUND_STATE);
 
             endTransactions(segmentedFile, transAddress);
 
@@ -187,7 +191,7 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
                 //no free segments, add to the end of the segment file
                 final long address = segmentedFile.writeToEnd(fis);
 
-                segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
+                segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
 
                 return address;
             }
@@ -209,7 +213,7 @@ public class StreamsSegmentedStreamingHashDataManager implements SingleValueHash
         final long transAddress = startWritingTransaction(segmentedFile, blobIndex);
 
         //delete the previous item
-        segmentedFile.writeState(blobIndex, SegmentedStreamingFile.FREE_STATE);
+        segmentedFile.writeState(blobIndex, SegmentedFile.FREE_STATE);
 
         endTransactions(segmentedFile, transAddress);
 

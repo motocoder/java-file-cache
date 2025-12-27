@@ -4,8 +4,7 @@ import llc.berserkr.cache.exception.OutOfSpaceException;
 import llc.berserkr.cache.exception.ReadFailure;
 import llc.berserkr.cache.exception.SpaceFragementedException;
 import llc.berserkr.cache.exception.WriteFailure;
-import llc.berserkr.cache.hash.SegmentedStreamingFile;
-import llc.berserkr.cache.hash.SegmentedBytesDataManager;
+import llc.berserkr.cache.hash.SegmentedFile;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -69,7 +68,7 @@ public class SegmentedFileTest {
 
         final int JUNK_COUNT = 1;
 
-        final SegmentedStreamingFile segmentedFile = new SegmentedStreamingFile(segmentFile);
+        final SegmentedFile segmentedFile = new SegmentedFile(segmentFile);
 
         final Set<byte []> junkBytes = new HashSet<byte[]>();
         final Set<String> junkStrings = new HashSet<>();
@@ -98,7 +97,7 @@ public class SegmentedFileTest {
 
             final long address = segmentedFile.writeToEnd(new ByteArrayInputStream(junk));
 
-            segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
+            segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
 
             addressesUsed.add(address);
 
@@ -156,7 +155,7 @@ public class SegmentedFileTest {
 
         //deletes the data by marking it free
         for(final long address : halfAddresses.keySet()) {
-            segmentedFile.writeState(address, SegmentedStreamingFile.FREE_STATE);
+            segmentedFile.writeState(address, SegmentedFile.FREE_STATE);
         }
 
         logger.info("deleted " + halfAddresses.size());
@@ -178,7 +177,7 @@ public class SegmentedFileTest {
                     final long freeAddress = segmentedFile.getFreeSegment(write.length);
 
                     segmentedFile.write(freeAddress, write);
-                    segmentedFile.writeState(freeAddress, SegmentedStreamingFile.BOUND_STATE);
+                    segmentedFile.writeState(freeAddress, SegmentedFile.BOUND_STATE);
 
                     wroteToFree.add(freeAddress);
 
@@ -190,7 +189,7 @@ public class SegmentedFileTest {
                     fragmentedCount++;
 
                     segmentedFile.write(e.getAddress(), write);
-                    segmentedFile.writeState(e.getAddress(), SegmentedStreamingFile.BOUND_STATE);
+                    segmentedFile.writeState(e.getAddress(), SegmentedFile.BOUND_STATE);
 
                     wroteToFree.add(e.getAddress());
                 }
@@ -214,7 +213,7 @@ public class SegmentedFileTest {
 
         final int JUNK_COUNT = 100;
 
-        final SegmentedStreamingFile segmentedFile = new SegmentedStreamingFile(segmentFile);
+        final SegmentedFile segmentedFile = new SegmentedFile(segmentFile);
 
         final Set<byte []> junkBytes = new HashSet<byte[]>();
         final Set<String> junkStrings = new HashSet<>();
@@ -241,7 +240,7 @@ public class SegmentedFileTest {
 
             final long address = segmentedFile.writeToEnd(new ByteArrayInputStream(junk));
 
-            segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
+            segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
 
             addressesUsed.add(address);
 
@@ -282,7 +281,7 @@ public class SegmentedFileTest {
 
         //deletes the data by marking it free
         for(final long address : halfAddresses.keySet()) {
-            segmentedFile.writeState(address, SegmentedStreamingFile.FREE_STATE);
+            segmentedFile.writeState(address, SegmentedFile.FREE_STATE);
         }
 
         //ok we have the segmented file into a state of being half empty, this can be used now for our tests
@@ -293,11 +292,11 @@ public class SegmentedFileTest {
 
             startWritingTransaction(segmentedFile, address);
 
-            segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
+            segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
 
             byte segmentState = segmentedFile.readSegmentState(address);
 
-            assertEquals(SegmentedStreamingFile.BOUND_STATE, segmentState);
+            assertEquals(SegmentedFile.BOUND_STATE, segmentState);
 
             segmentedFile.validateData();
 
@@ -305,7 +304,7 @@ public class SegmentedFileTest {
 
             segmentState = segmentedFile.readSegmentState(address);
 
-            assertEquals(SegmentedStreamingFile.FREE_STATE, segmentState);
+            assertEquals(SegmentedFile.FREE_STATE, segmentState);
 
         }
 
@@ -318,7 +317,7 @@ public class SegmentedFileTest {
 
             byte segmentState = segmentedFile.readSegmentState(address);
 
-            assertEquals(SegmentedStreamingFile.FREE_STATE, segmentState); //state didn't exist before
+            assertEquals(SegmentedFile.FREE_STATE, segmentState); //state didn't exist before
 
         }
 
@@ -332,7 +331,7 @@ public class SegmentedFileTest {
 
             byte segmentState = segmentedFile.readSegmentState(address);
 
-            assertEquals(SegmentedStreamingFile.FREE_STATE, segmentState); //state didn't exist before
+            assertEquals(SegmentedFile.FREE_STATE, segmentState); //state didn't exist before
 
         }
 

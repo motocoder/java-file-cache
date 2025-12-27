@@ -23,10 +23,10 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
 
     private static final Logger logger = LoggerFactory.getLogger(BlobsSegmentedStreamingHashDataManager.class);
 
-    private final SegmentedStreamingFile segmentedFile;
+    private final SegmentedFile segmentedFile;
 
     public BlobsSegmentedStreamingHashDataManager(File segmentFile) {
-        this.segmentedFile = new SegmentedStreamingFile(segmentFile);
+        this.segmentedFile = new SegmentedFile(segmentFile);
     }
 
     @Override
@@ -66,7 +66,7 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
                     final long transAddress = startWritingTransaction(segmentedFile, blobIndex);
 
                     //delete the previous item
-                    segmentedFile.writeState(blobIndex, SegmentedStreamingFile.FREE_STATE);
+                    segmentedFile.writeState(blobIndex, SegmentedFile.FREE_STATE);
 
                     endTransactions(segmentedFile, transAddress);
 
@@ -87,7 +87,7 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
             final long transAddress = startWritingTransaction(segmentedFile, free);
 
             segmentedFile.write(free, pairData);
-            segmentedFile.writeState(free, SegmentedStreamingFile.BOUND_STATE);
+            segmentedFile.writeState(free, SegmentedFile.BOUND_STATE);
 
             endTransactions(segmentedFile, transAddress);
 
@@ -103,16 +103,16 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
             }
 
             final long address = e.getAddress();
-            final long splitAddress = address + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + split1;
+            final long splitAddress = address + SegmentedFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedFile.SEGMENT_LENGTH_BYTES_COUNT + split1;
 
             final long transAddress = startWritingTransaction(segmentedFile, address);
 
-            segmentedFile.setSegmentSize(splitAddress, split2 - (SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedStreamingFile.SEGMENT_LENGTH_BYTES_COUNT));
-            segmentedFile.writeState(splitAddress, SegmentedStreamingFile.FREE_STATE);
+            segmentedFile.setSegmentSize(splitAddress, split2 - (SegmentedFile.SEGMENT_LENGTH_BYTES_COUNT + 1 + SegmentedFile.SEGMENT_LENGTH_BYTES_COUNT));
+            segmentedFile.writeState(splitAddress, SegmentedFile.FREE_STATE);
 
             segmentedFile.setSegmentSize(address, split1);
             segmentedFile.write(address, pairData);
-            segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
+            segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
 
             endTransactions(segmentedFile, transAddress);
 
@@ -124,7 +124,7 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
 
             segmentedFile.setSegmentSize(e.getAddress(), e.getSegmentSize());
             segmentedFile.write(e.getAddress(), pairData);
-            segmentedFile.writeState(e.getAddress(), SegmentedStreamingFile.BOUND_STATE);
+            segmentedFile.writeState(e.getAddress(), SegmentedFile.BOUND_STATE);
 
             endTransactions(segmentedFile, transAddress);
 
@@ -138,7 +138,7 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
                 //no free segments, add to the end of the segment file
                 final long address = segmentedFile.writeToEnd(is);
 
-                segmentedFile.writeState(address, SegmentedStreamingFile.BOUND_STATE);
+                segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
 
                 endTransactions(segmentedFile, transAddress);
 
@@ -238,7 +238,7 @@ public class BlobsSegmentedStreamingHashDataManager implements HashDataManager<b
         final long transAddress = startWritingTransaction(segmentedFile, blobIndex);
 
         //delete the previous item
-        segmentedFile.writeState(blobIndex, SegmentedStreamingFile.FREE_STATE);
+        segmentedFile.writeState(blobIndex, SegmentedFile.FREE_STATE);
 
         endTransactions(segmentedFile, transAddress);
     }

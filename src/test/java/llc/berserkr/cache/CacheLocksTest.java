@@ -1,7 +1,6 @@
 package llc.berserkr.cache;
 
-import llc.berserkr.cache.hash.HashLocks;
-import llc.berserkr.cache.testutil.SynchronizedCounter;
+import llc.berserkr.cache.hash.CacheLocks;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,9 +14,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class HashLocksTest {
+public class CacheLocksTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(HashLocksTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(CacheLocksTest.class);
 
     boolean flag2 = false;
     boolean flag1 = false;
@@ -30,18 +29,18 @@ public class HashLocksTest {
 
         final ExecutorService executor = Executors.newCachedThreadPool();
 
-        final HashLocks.SharedWriteLocks sharedWriteLocks = new HashLocks.SharedWriteLocks();
-        final HashLocks locks = new HashLocks(sharedWriteLocks);
+        final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.SharedWriteLocks();
+        final CacheLocks locks = new CacheLocks(sharedWriteLocks);
 
         {
 
             assertFalse(flag1);
             assertFalse(flag2);
-            locks.getLock(HashLocks.LockType.READER);
+            locks.getLock(CacheLocks.LockType.READER);
             //set a reader lock the set another and make sure it doesn't block
             executor.execute(() -> {
 
-                getLock(locks, HashLocks.LockType.READER);
+                getLock(locks, CacheLocks.LockType.READER);
 
                 flag1 = true;
             });
@@ -54,7 +53,7 @@ public class HashLocksTest {
             executor.execute(() -> {
 
                 flag1 = true;
-                getLock(locks, HashLocks.LockType.WRITER);
+                getLock(locks, CacheLocks.LockType.WRITER);
 
                 flag2 = true;
             });
@@ -64,11 +63,11 @@ public class HashLocksTest {
             assertFalse(flag2);
 
             //writer should go now that readers left
-            locks.releaseLock(HashLocks.LockType.READER);
+            locks.releaseLock(CacheLocks.LockType.READER);
 
             Thread.sleep(10);
 
-            locks.releaseLock(HashLocks.LockType.READER);
+            locks.releaseLock(CacheLocks.LockType.READER);
 
             Thread.sleep(10);
             assertTrue(flag2);
@@ -80,7 +79,7 @@ public class HashLocksTest {
             executor.execute(() -> {
 
                 flag1 = true;
-                getLock(locks, HashLocks.LockType.READER);
+                getLock(locks, CacheLocks.LockType.READER);
 
                 flag2 = true;
             });
@@ -89,9 +88,9 @@ public class HashLocksTest {
             assertTrue(flag1);
             assertFalse(flag2);
 
-            locks.releaseLock(HashLocks.LockType.WRITER);
+            locks.releaseLock(CacheLocks.LockType.WRITER);
             Thread.sleep(10); //let the blocked reader obtain a lock
-            locks.releaseLock(HashLocks.LockType.READER);
+            locks.releaseLock(CacheLocks.LockType.READER);
 
             Thread.sleep(10);
             assertTrue(flag2);
@@ -106,19 +105,19 @@ public class HashLocksTest {
 
         final ExecutorService executor = Executors.newCachedThreadPool();
 
-        final HashLocks.SharedWriteLocks sharedWriteLocks = new HashLocks.SharedWriteLocks();
-        final HashLocks locks = new HashLocks(sharedWriteLocks);
+        final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.SharedWriteLocks();
+        final CacheLocks locks = new CacheLocks(sharedWriteLocks);
 
         flag1 = false;
         flag2 = false;
 
-        locks.getLock(HashLocks.LockType.WRITER);
+        locks.getLock(CacheLocks.LockType.WRITER);
 
         //writer is out, so all should be blocked
         executor.execute(() -> {
 
             flag1 = true;
-            getLock(locks, HashLocks.LockType.WRITER);
+            getLock(locks, CacheLocks.LockType.WRITER);
 
             flag2 = true;
         });
@@ -127,7 +126,7 @@ public class HashLocksTest {
         executor.execute(() -> {
 
             flag1 = true;
-            getLock(locks, HashLocks.LockType.READER);
+            getLock(locks, CacheLocks.LockType.READER);
 
             flag2 = true;
         });
@@ -136,11 +135,11 @@ public class HashLocksTest {
         assertTrue(flag1);
         assertFalse(flag2);
 
-        locks.releaseLock(HashLocks.LockType.WRITER);
+        locks.releaseLock(CacheLocks.LockType.WRITER);
         Thread.sleep(10);
-        locks.releaseLock(HashLocks.LockType.WRITER);
+        locks.releaseLock(CacheLocks.LockType.WRITER);
         Thread.sleep(10);
-        locks.releaseLock(HashLocks.LockType.READER);
+        locks.releaseLock(CacheLocks.LockType.READER);
 
         Thread.sleep(20);
         assertTrue(flag2);
@@ -152,22 +151,22 @@ public class HashLocksTest {
 
         final ExecutorService executor = Executors.newCachedThreadPool();
 
-        final HashLocks.SharedWriteLocks sharedWriteLocks = new HashLocks.SharedWriteLocks();
-        final HashLocks locks = new HashLocks(sharedWriteLocks);
-        final HashLocks locks2 = new HashLocks(sharedWriteLocks);
+        final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.SharedWriteLocks();
+        final CacheLocks locks = new CacheLocks(sharedWriteLocks);
+        final CacheLocks locks2 = new CacheLocks(sharedWriteLocks);
 
         //alright lets do the shared locks now.
         {
             flag1 = false;
             flag2 = false;
 
-            locks.getLock(HashLocks.LockType.WRITER);
+            locks.getLock(CacheLocks.LockType.WRITER);
 
 //            writer is out, so all should be blocked
             executor.execute(() -> {
 
                 flag1 = true;
-                getLock(locks, HashLocks.LockType.READER);
+                getLock(locks, CacheLocks.LockType.READER);
 
                 flag2 = true;
             });
@@ -176,7 +175,7 @@ public class HashLocksTest {
             executor.execute(() -> {
 
                 flag1 = true;
-                getLock(locks2, HashLocks.LockType.READER);
+                getLock(locks2, CacheLocks.LockType.READER);
 
                 flag3 = true;
             });
@@ -185,7 +184,7 @@ public class HashLocksTest {
             executor.execute(() -> {
 
                 flag1 = true;
-                getLock(locks, HashLocks.LockType.WRITER);
+                getLock(locks, CacheLocks.LockType.WRITER);
 
                 flag2 = true;
             });
@@ -194,7 +193,7 @@ public class HashLocksTest {
             executor.execute(() -> {
 
                 flag1 = true;
-                getLock(locks2, HashLocks.LockType.WRITER);
+                getLock(locks2, CacheLocks.LockType.WRITER);
 
                 flag2 = true;
             });
@@ -216,24 +215,24 @@ public class HashLocksTest {
 
         final ExecutorService executor = Executors.newCachedThreadPool();
 
-        final HashLocks.SharedWriteLocks sharedWriteLocks = new HashLocks.SharedWriteLocks();
+        final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.SharedWriteLocks();
 
-        final Map<Integer, HashLocks> allLocks = new ConcurrentHashMap<>();
-        final List<HashLocks.LockType> lockTypes = Collections.synchronizedList(new ArrayList<>());
+        final Map<Integer, CacheLocks> allLocks = new ConcurrentHashMap<>();
+        final List<CacheLocks.LockType> lockTypes = Collections.synchronizedList(new ArrayList<>());
 
         int writes = THREADS_COUNT / 10;
         int reads = THREADS_COUNT - writes;
 
         for(int i = 0; i < writes; i++) {
-            lockTypes.add(HashLocks.LockType.WRITER);
+            lockTypes.add(CacheLocks.LockType.WRITER);
         }
 
         for(int i = 0; i < reads; i++) {
-            lockTypes.add(HashLocks.LockType.READER);
+            lockTypes.add(CacheLocks.LockType.READER);
         }
 
         for(int i = 0; i < LOCK_COUNT; i++) {
-            allLocks.put(i, new HashLocks(sharedWriteLocks));
+            allLocks.put(i, new CacheLocks(sharedWriteLocks));
         }
 
         {
@@ -259,9 +258,9 @@ public class HashLocksTest {
                 for(int lockIter = 0; lockIter < 100; lockIter++) {
 
                     final int random = (int) (Math.random() * 100);
-                    final HashLocks.LockType type = lockTypes.removeFirst();
+                    final CacheLocks.LockType type = lockTypes.removeFirst();
 
-                    final HashLocks lock = allLocks.get(random);
+                    final CacheLocks lock = allLocks.get(random);
 
                     try {
 
@@ -317,7 +316,7 @@ public class HashLocksTest {
 
     }
 
-    private void getLock(HashLocks locks, HashLocks.LockType type) {
+    private void getLock(CacheLocks locks, CacheLocks.LockType type) {
 
         try {
             locks.getLock(type);

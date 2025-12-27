@@ -1,21 +1,18 @@
 package llc.berserkr.cache.hash;
 
 import llc.berserkr.cache.exception.*;
-import llc.berserkr.cache.util.DataUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static llc.berserkr.cache.util.DataUtils.*;
 
-public class SegmentedStreamingFile {
+public class SegmentedFile {
 
-    private static final Logger logger = LoggerFactory.getLogger(SegmentedStreamingFile.class);
+    private static final Logger logger = LoggerFactory.getLogger(SegmentedFile.class);
 
     //size of the buffer used to write files //TODO make configurable
     private static final int WRITE_BUFFER_SIZE = 8192;
@@ -55,7 +52,7 @@ public class SegmentedStreamingFile {
      *
      * @param root
      */
-    public SegmentedStreamingFile(
+    public SegmentedFile(
         final File root
     ) {
 

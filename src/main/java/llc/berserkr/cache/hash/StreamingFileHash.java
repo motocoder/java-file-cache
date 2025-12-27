@@ -33,10 +33,10 @@ public class StreamingFileHash {
     private final int hashSize;
     private final File file;
 
-    private final Map<Long, HashLocks> hashLocks = new ConcurrentHashMap<>();
+    private final Map<Long, CacheLocks> hashLocks = new ConcurrentHashMap<>();
 
     private final BlobsSegmentedStreamingHashDataManager blobManager;
-    private final StreamsSegmentedStreamingHashDataManager dataManager;
+    private final SegmentedStreamingDataManager dataManager;
     private final LocalRandomAccess localAccess;
 
     public StreamingFileHash(
@@ -54,7 +54,7 @@ public class StreamingFileHash {
         }
 
         this.blobManager = new BlobsSegmentedStreamingHashDataManager(blobFile);
-        this.dataManager = new StreamsSegmentedStreamingHashDataManager(dataFile, tempDirectory);
+        this.dataManager = new SegmentedStreamingDataManager(dataFile, tempDirectory);
         this.file = file;
         this.localAccess = new LocalRandomAccess(file);
 
@@ -106,14 +106,14 @@ public class StreamingFileHash {
 
     }
 
-    private final HashLocks.SharedWriteLocks sharedLocks = new HashLocks.SharedWriteLocks();
+    private final CacheLocks.SharedWriteLocks sharedLocks = new CacheLocks.SharedWriteLocks();
 
-    private synchronized HashLocks getLock(long key) {
+    private synchronized CacheLocks getLock(long key) {
 
-        HashLocks returnVal = hashLocks.get(key);
+        CacheLocks returnVal = hashLocks.get(key);
 
         if(returnVal == null) {
-            returnVal = new HashLocks(sharedLocks);
+            returnVal = new CacheLocks(sharedLocks);
             hashLocks.put(key, returnVal);
         }
 
@@ -140,10 +140,10 @@ public class StreamingFileHash {
            final RandomAccessFile randomRead = localAccess.getReader();
            final RandomAccessFile randomWrite = localAccess.getWriter();
 
-           final HashLocks lock = getLock(hashedIndex);
+           final CacheLocks lock = getLock(hashedIndex);
 
            try {
-               lock.getLock(HashLocks.LockType.WRITER);
+               lock.getLock(CacheLocks.LockType.WRITER);
 
                final byte[] currentKeyIn = new byte[BUCKET_SIZE];
                randomRead.seek(hashedIndex);
@@ -213,7 +213,7 @@ public class StreamingFileHash {
                throw new WriteFailure("interrupted", e);
            } finally {
 
-               lock.releaseLock(HashLocks.LockType.WRITER);
+               lock.releaseLock(CacheLocks.LockType.WRITER);
 
                localAccess.giveReader(randomRead);
                localAccess.giveWriter(randomWrite);
@@ -245,11 +245,11 @@ public class StreamingFileHash {
 
         final RandomAccessFile randomRead = localAccess.getReader();
 
-        final HashLocks lock = getLock(hashedIndex);
+        final CacheLocks lock = getLock(hashedIndex);
 
         try {
 
-            lock.getLock(HashLocks.LockType.READER);
+            lock.getLock(CacheLocks.LockType.READER);
 
             final byte[] currentKeyIn = new byte[BUCKET_SIZE];
             randomRead.seek(hashedIndex);
@@ -258,7 +258,7 @@ public class StreamingFileHash {
             final int read = randomRead.read(currentKeyIn);
 
             if (read <= 0) {
-                lock.releaseLock(HashLocks.LockType.READER);
+                lock.releaseLock(CacheLocks.LockType.READER);
                 //file should have been initialized to hash size
                 throw new RuntimeException("hash was not initialized properly");
             }
@@ -274,7 +274,7 @@ public class StreamingFileHash {
                 final Set<Pair<byte[], Long>> blobs = blobManager.getBlobsAt(blobIndex);
 
                 if (blobs == null) {
-                    lock.releaseLock(HashLocks.LockType.READER);
+                    lock.releaseLock(CacheLocks.LockType.READER);
                     //data corrupt lets remove our reference.
                     throw new ReadFailure("there should have been blobs at blobIndex");
                 } else {
@@ -296,13 +296,13 @@ public class StreamingFileHash {
             }
 
             if (returnVal == null) {
-                lock.releaseLock(HashLocks.LockType.READER);
+                lock.releaseLock(CacheLocks.LockType.READER);
                 return null;
             }
 
             return new WrappingInputStream(dataManager.getBlobsAt(returnVal)) {
 
-                private HashLocks myLock = lock;
+                private CacheLocks myLock = lock;
 
                 private synchronized void giveLockOnce() {
 
@@ -310,7 +310,7 @@ public class StreamingFileHash {
                         return;
                     }
 
-                    lock.releaseLock(HashLocks.LockType.READER);
+                    lock.releaseLock(CacheLocks.LockType.READER);
 
                     myLock = null;
 
@@ -356,14 +356,14 @@ public class StreamingFileHash {
         
         final long hashedIndex = limitedHash * (BUCKET_SIZE);
 
-        final HashLocks lock = getLock(hashedIndex);
+        final CacheLocks lock = getLock(hashedIndex);
 
         final RandomAccessFile randomRead = localAccess.getReader();
         final RandomAccessFile randomWrite = localAccess.getWriter();
 
         try {
 
-            lock.getLock(HashLocks.LockType.WRITER);
+            lock.getLock(CacheLocks.LockType.WRITER);
 
             final byte[] currentKeyIn = new byte[BUCKET_SIZE];
             randomRead.seek(hashedIndex);
@@ -452,7 +452,7 @@ public class StreamingFileHash {
             throw new WriteFailure("failed to write interrupted", e);
         } finally {
 
-            lock.releaseLock(HashLocks.LockType.WRITER);
+            lock.releaseLock(CacheLocks.LockType.WRITER);
             localAccess.giveReader(randomRead);
             localAccess.giveWriter(randomWrite);
 
@@ -465,11 +465,11 @@ public class StreamingFileHash {
         final RandomAccessFile randomRead = localAccess.getReader();
         final RandomAccessFile randomWrite = localAccess.getWriter();
 
-        final HashLocks lock = getLock(hashedIndex);
+        final CacheLocks lock = getLock(hashedIndex);
 
         try {
 
-            lock.getLock(HashLocks.LockType.WRITER);
+            lock.getLock(CacheLocks.LockType.WRITER);
             final byte[] currentKeyIn = new byte[BUCKET_SIZE];
             randomRead.seek(hashedIndex);
 
@@ -518,7 +518,7 @@ public class StreamingFileHash {
             throw new WriteFailure("failed to write, interrupted", e);
         } finally {
 
-            lock.releaseLock(HashLocks.LockType.WRITER);
+            lock.releaseLock(CacheLocks.LockType.WRITER);
 
             localAccess.giveReader(randomRead);
             localAccess.giveWriter(randomWrite);
@@ -536,7 +536,7 @@ public class StreamingFileHash {
         }
         catch (Exception e) {
 
-            SegmentedStreamingFile.delete(file.getAbsolutePath());
+            SegmentedFile.delete(file.getAbsolutePath());
 
             try {
                 initFile();

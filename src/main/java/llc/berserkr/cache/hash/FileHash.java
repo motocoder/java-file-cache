@@ -10,8 +10,6 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.util.*;
 
-import java.util.concurrent.ConcurrentHashMap;
-
 import static llc.berserkr.cache.util.DataUtils.bytesToLong;
 import static llc.berserkr.cache.util.DataUtils.longToByteArray;
 
@@ -33,7 +31,7 @@ public class FileHash {
     private final int hashSize;
     private final File file;
 
-    private final Map<Long, HashLocks> hashLocks = new HashMap<>();
+    private final Map<Long, CacheLocks> hashLocks = new HashMap<>();
 
     private final SegmentedBytesDataManager blobManager;
     private final LocalRandomAccess localAccess;
@@ -102,14 +100,14 @@ public class FileHash {
 
     }
 
-    private final HashLocks.SharedWriteLocks sharedLocks = new HashLocks.SharedWriteLocks();
+    private final CacheLocks.SharedWriteLocks sharedLocks = new CacheLocks.SharedWriteLocks();
 
-    private synchronized HashLocks getLock(long key) {
+    private synchronized CacheLocks getLock(long key) {
 
-        HashLocks returnVal = hashLocks.get(key);
+        CacheLocks returnVal = hashLocks.get(key);
 
         if(returnVal == null) {
-            returnVal = new HashLocks(sharedLocks);
+            returnVal = new CacheLocks(sharedLocks);
             hashLocks.put(key, returnVal);
         }
 
@@ -136,11 +134,11 @@ public class FileHash {
             final RandomAccessFile randomRead = localAccess.getReader();
             final RandomAccessFile randomWrite = localAccess.getWriter();
 
-            final HashLocks lock = getLock(hashedIndex);
+            final CacheLocks lock = getLock(hashedIndex);
 
             try {
 
-                lock.getLock(HashLocks.LockType.WRITER);
+                lock.getLock(CacheLocks.LockType.WRITER);
 
                final byte [] currentKeyIn = new byte[BUCKET_SIZE];
                randomRead.seek(hashedIndex);
@@ -202,7 +200,7 @@ public class FileHash {
                 throw new WriteFailure("failed to write interrupted", e);
             } finally {
 
-                lock.releaseLock(HashLocks.LockType.WRITER);
+                lock.releaseLock(CacheLocks.LockType.WRITER);
                 localAccess.giveReader(randomRead);
                 localAccess.giveWriter(randomWrite);
 
@@ -233,11 +231,11 @@ public class FileHash {
 
         final RandomAccessFile randomRead = localAccess.getReader();
 
-        final HashLocks lock = getLock(hashedIndex);
+        final CacheLocks lock = getLock(hashedIndex);
 
         try {
 
-            lock.getLock(HashLocks.LockType.READER);
+            lock.getLock(CacheLocks.LockType.READER);
             final byte [] currentKeyIn = new byte[BUCKET_SIZE];
             randomRead.seek(hashedIndex);
 
@@ -294,7 +292,7 @@ public class FileHash {
         } catch (InterruptedException e) {
             throw new ReadFailure("failed to read interrupted", e);
         } finally {
-            lock.releaseLock(HashLocks.LockType.READER);
+            lock.releaseLock(CacheLocks.LockType.READER);
             localAccess.giveReader(randomRead);
         }
         
@@ -309,10 +307,10 @@ public class FileHash {
         final RandomAccessFile randomRead = localAccess.getReader();
         final RandomAccessFile randomWrite = localAccess.getWriter();
 
-        final HashLocks lock = getLock(hashedIndex);
+        final CacheLocks lock = getLock(hashedIndex);
 
         try {
-            lock.getLock(HashLocks.LockType.WRITER);
+            lock.getLock(CacheLocks.LockType.WRITER);
 
             final byte[] currentKeyIn = new byte[BUCKET_SIZE];
             randomRead.seek(hashedIndex);
@@ -403,7 +401,7 @@ public class FileHash {
             throw new WriteFailure("failed to write iteerrupted", e);
         } finally {
 
-            lock.releaseLock(HashLocks.LockType.WRITER);
+            lock.releaseLock(CacheLocks.LockType.WRITER);
 
             localAccess.giveReader(randomRead);
             localAccess.giveWriter(randomWrite);
@@ -417,11 +415,11 @@ public class FileHash {
         final RandomAccessFile randomRead = localAccess.getReader();
         final RandomAccessFile randomWrite = localAccess.getWriter();
 
-        final HashLocks lock = getLock(hashedIndex);
+        final CacheLocks lock = getLock(hashedIndex);
 
         try {
 
-            lock.getLock(HashLocks.LockType.WRITER);
+            lock.getLock(CacheLocks.LockType.WRITER);
 
             final byte[] currentKeyIn = new byte[BUCKET_SIZE];
             randomRead.seek(hashedIndex);
@@ -464,7 +462,7 @@ public class FileHash {
         } catch (InterruptedException e) {
             throw new WriteFailure("failed to write interrupted", e);
         } finally {
-            lock.releaseLock(HashLocks.LockType.WRITER);
+            lock.releaseLock(CacheLocks.LockType.WRITER);
             localAccess.giveReader(randomRead);
             localAccess.giveWriter(randomWrite);
         }
@@ -481,7 +479,7 @@ public class FileHash {
         }
         catch (Exception e) {
 
-            SegmentedStreamingFile.delete(file.getAbsolutePath());
+            SegmentedFile.delete(file.getAbsolutePath());
 
             try {
                 initFile();

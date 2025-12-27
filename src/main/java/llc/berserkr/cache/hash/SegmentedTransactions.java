@@ -14,7 +14,7 @@ public class SegmentedTransactions {
      * @throws ReadFailure
      * @throws WriteFailure
      */
-    public static void endTransactions(SegmentedStreamingFile segmentedFile, long address) throws ReadFailure, WriteFailure {
+    public static void endTransactions(SegmentedFile segmentedFile, long address) throws ReadFailure, WriteFailure {
         segmentedFile.clearTransaction(address);
     }
 
@@ -26,11 +26,11 @@ public class SegmentedTransactions {
      * @throws ReadFailure
      * @throws WriteFailure
      */
-    public static long startWritingTransaction(SegmentedStreamingFile segmentedFile, long address) throws ReadFailure, WriteFailure {
+    public static long startWritingTransaction(SegmentedFile segmentedFile, long address) throws ReadFailure, WriteFailure {
 
         final byte[] addressBytes = longToByteArray(address);
         final byte [] writeTransaction = new byte[] {
-            SegmentedStreamingFile.WRITING_TRANSACTION, //reversal of a write just deletes it anyway
+            SegmentedFile.WRITING_TRANSACTION, //reversal of a write just deletes it anyway
             addressBytes[0],
             addressBytes[1],
             addressBytes[2],
@@ -39,7 +39,7 @@ public class SegmentedTransactions {
             addressBytes[5],
             addressBytes[6],
             addressBytes[7],
-            SegmentedStreamingFile.WRITING_TRANSACTION //end item is set as well so we know it wrote everything in between
+            SegmentedFile.WRITING_TRANSACTION //end item is set as well so we know it wrote everything in between
         };
 
         return segmentedFile.writeTransactionalBytes(
@@ -56,17 +56,17 @@ public class SegmentedTransactions {
      * @throws ReadFailure
      * @throws WriteFailure
      */
-    public static long startAddTransaction(SegmentedStreamingFile segmentedFile, int length) throws ReadFailure, WriteFailure {
+    public static long startAddTransaction(SegmentedFile segmentedFile, int length) throws ReadFailure, WriteFailure {
 
         final byte[] lengthBytes = intToByteArray(length);
 
         final byte [] writeTransaction = new byte[] {
-            SegmentedStreamingFile.ADD_END_TRANSACTION, //if merge fails we will finish the merge but leave it empty
+            SegmentedFile.ADD_END_TRANSACTION, //if merge fails we will finish the merge but leave it empty
             lengthBytes[0],
             lengthBytes[1],
             lengthBytes[2],
             lengthBytes[3],
-            SegmentedStreamingFile.ADD_END_TRANSACTION    //end item is set as well so we know it wrote everything in between
+            SegmentedFile.ADD_END_TRANSACTION    //end item is set as well so we know it wrote everything in between
         };
 
         return segmentedFile.writeTransactionalBytes(
@@ -84,13 +84,13 @@ public class SegmentedTransactions {
      * @throws ReadFailure
      * @throws WriteFailure
      */
-    public static long startMergeTransaction(SegmentedStreamingFile segmentedFile, long address, int segmentSize) throws ReadFailure, WriteFailure {
+    public static long startMergeTransaction(SegmentedFile segmentedFile, long address, int segmentSize) throws ReadFailure, WriteFailure {
 
         final byte[] addressBytes = longToByteArray(address);
         final byte[] lengthBytes = intToByteArray(segmentSize);
 
         final byte [] writeTransaction = new byte[] {
-            SegmentedStreamingFile.MERGE_TRANSACTION, //if merge fails we will finish the merge but leave it empty
+            SegmentedFile.MERGE_TRANSACTION, //if merge fails we will finish the merge but leave it empty
             addressBytes[0],
             addressBytes[1],
             addressBytes[2],
@@ -103,7 +103,7 @@ public class SegmentedTransactions {
             lengthBytes[1],
             lengthBytes[2],
             lengthBytes[3],
-            SegmentedStreamingFile.MERGE_TRANSACTION //end item is set as well so we know it wrote everything in between
+            SegmentedFile.MERGE_TRANSACTION //end item is set as well so we know it wrote everything in between
         };
 
         return segmentedFile.writeTransactionalBytes(

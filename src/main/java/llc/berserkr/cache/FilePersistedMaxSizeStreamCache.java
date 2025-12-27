@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.util.List;
 
-import static llc.berserkr.cache.hash.SegmentedStreamingFile.delete;
+import static llc.berserkr.cache.hash.SegmentedFile.delete;
 
 //TODO fix this class it fails multi-threading
 

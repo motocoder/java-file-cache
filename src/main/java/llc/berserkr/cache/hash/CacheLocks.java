@@ -25,9 +25,9 @@ import org.slf4j.LoggerFactory;
  *
  * TODO write this in C
  */
-public class HashLocks {
+public class CacheLocks {
 
-    private static final Logger logger = LoggerFactory.getLogger(HashLocks.class);
+    private static final Logger logger = LoggerFactory.getLogger(CacheLocks.class);
 
     //TODO this is required to prevent multiple writes occuring at the same time, this can be changed though
     //TODO rework the transaction system to allow multiple writes
@@ -41,7 +41,7 @@ public class HashLocks {
     private int writers = 0;
     private int readers = 0;
 
-    public HashLocks(SharedWriteLocks writeLocks) {
+    public CacheLocks(SharedWriteLocks writeLocks) {
 
 //        this.writeLocks = writeLocks;
     }

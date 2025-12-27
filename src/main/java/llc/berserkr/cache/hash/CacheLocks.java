@@ -6,9 +6,6 @@ import org.slf4j.LoggerFactory;
 /**
  * Reading and writing operations can happen simultaneous as long as they don't conflict at several points.
  *
- * Each write operation manipulated the transactional data portion of the SegmentedFile. This currently is a conflict
- * that could be changed.
- *
  * If a segment is writing to an existing segment it can't be read at the same time.
  *
  * A segment also can't be written to by 2 threads at the same time.
@@ -29,12 +26,7 @@ public class CacheLocks {
 
     private static final Logger logger = LoggerFactory.getLogger(CacheLocks.class);
 
-    //TODO this is required to prevent multiple writes occuring at the same time, this can be changed though
-    //TODO rework the transaction system to allow multiple writes
-    //TODO rework the adding segments to the end to allow multiple writes.
-    //if you do all that you should be able to get rid of the global write lock which will drastically
-    //increase multi threaded performance.
-//    private final SharedWriteLocks writeLocks;
+    private final SharedWriteLocks writeLocks;
 
     public enum LockType {READER, WRITER}
 
@@ -42,85 +34,88 @@ public class CacheLocks {
     private int readers = 0;
 
     public CacheLocks(SharedWriteLocks writeLocks) {
-
-//        this.writeLocks = writeLocks;
+        this.writeLocks = writeLocks;
     }
 
-    public synchronized void getLock(final LockType lockType) throws InterruptedException {
+    public void getLock(final LockType lockType) throws InterruptedException {
 
         while(true) {
 
-//            synchronized(writeLocks) {
+            synchronized(writeLocks) {
 
-                if(writers < 0 || readers < 0 ) {//|| writeLocks.peekLock() < 0) {
-                    throw new IllegalStateException("someone released too many locks " + /*writeLocks.peekLock() + " " +*/ readers + " " + writers);
+                if(writers < 0 || readers < 0 || writeLocks.peekLock() < 0) {
+                    throw new IllegalStateException("someone released too many locks " + writeLocks.peekLock() + " " + readers + " " + writers);
                 }
 
                 switch (lockType) {
                     case READER: {
                         //as long as there's no writers, good to go
-                        if (writers == 0 ) { //&& writeLocks.peekLock() == 0) {
+                        if (writers == 0 && writeLocks.peekLock() == 0) {
                             //reader doesn't care about other writers just our own
-//                            writeLocks.getLock(HashLocks.LockType.READER);
+                            writeLocks.getLock(CacheLocks.LockType.READER);
                             readers++; //lock it for writers
                             return;
                         } else {
                             //someone is writing just wait
-//                            writeLocks.wait();
-                            wait();
+                            writeLocks.wait();
                         }
                         break;
                     }
                     case WRITER: {
 
-                        if (writers == 0 && readers == 0) {// && writeLocks.peekLock() == 0) {
-//                            writeLocks.getLock(LockType.WRITER);
+                        if (writers == 0 && readers == 0 && writeLocks.peekLock() == 0) {
+                            writeLocks.getLock(LockType.WRITER);
                             writers++; // lock it for readers and writers
                             return;
                         } else {
                             //if global locks aren't blocked but others are
-//                            writeLocks.wait();
-                            wait();
+                            writeLocks.wait();
                         }
                         break;
                     }
                 }
-//            }
+            }
         }
     }
 
-    public synchronized void releaseLock(LockType lockType) {
+    public void releaseLock(LockType lockType) {
 
-//        synchronized(writeLocks) {
+        synchronized(writeLocks) {
             switch (lockType) {
                 case READER: {
                     readers--;
-                    if((readers == 0 && /*writeLocks.peekLock() == 0 && */ writers == 0)) {
-//                        writeLocks.notify();
-                        notify();
+                    if((readers == 0 && writeLocks.peekLock() == 0 && writers == 0)) {
+                        writeLocks.notify();
                     }
                     break;
                 }
 
                 case WRITER: {
                     writers--;
-//                    writeLocks.releaseLock(); //only write releases global lock
-//                    if((writeLocks.peekLock() == 0 &&
-                            if(writers == 0) {
-//                        writeLocks.notifyAll();
-                        notify();
+                    writeLocks.releaseLock(); //only write releases global lock
+                    if((writeLocks.peekLock() == 0 && writers == 0)) {
+                        writeLocks.notify();
                     }
                     break;
                 }
-//            }
+            }
         }
     }
 
-    public static class SharedWriteLocks {
+    public interface SharedWriteLocks {
+
+        int getLock(LockType lockType);
+        void releaseLock();
+        int peekLock();
+
+    }
+
+    public static class StandardSharedWriteLocks implements SharedWriteLocks {
 
         private int writeLocks = 0;
 
-        private synchronized int getLock(LockType lockType) {
+        @Override
+        public synchronized int getLock(LockType lockType) {
 
             if(lockType == LockType.WRITER) {
                 return writeLocks++;
@@ -131,13 +126,31 @@ public class CacheLocks {
 
         }
 
-        private synchronized void releaseLock() {
+        @Override
+        public synchronized void releaseLock() {
             writeLocks--;
-//            this.notifyAll();
         }
 
+        @Override
         public synchronized int peekLock() {
             return writeLocks;
+        }
+    }
+
+    public static class IgnoredWriteLocks implements SharedWriteLocks {
+
+        @Override
+        public int getLock(LockType lockType) {
+            return 0;
+        }
+
+        @Override
+        public void releaseLock() {
+        }
+
+        @Override
+        public int peekLock() {
+            return 0;
         }
     }
 

@@ -29,7 +29,7 @@ public class CacheLocksTest {
 
         final ExecutorService executor = Executors.newCachedThreadPool();
 
-        final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.SharedWriteLocks();
+        final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.IgnoredWriteLocks();
         final CacheLocks locks = new CacheLocks(sharedWriteLocks);
 
         {
@@ -105,7 +105,7 @@ public class CacheLocksTest {
 
         final ExecutorService executor = Executors.newCachedThreadPool();
 
-        final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.SharedWriteLocks();
+        final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.IgnoredWriteLocks();
         final CacheLocks locks = new CacheLocks(sharedWriteLocks);
 
         flag1 = false;
@@ -151,7 +151,7 @@ public class CacheLocksTest {
 
         final ExecutorService executor = Executors.newCachedThreadPool();
 
-        final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.SharedWriteLocks();
+        final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.IgnoredWriteLocks();
         final CacheLocks locks = new CacheLocks(sharedWriteLocks);
         final CacheLocks locks2 = new CacheLocks(sharedWriteLocks);
 
@@ -215,7 +215,7 @@ public class CacheLocksTest {
 
         final ExecutorService executor = Executors.newCachedThreadPool();
 
-        final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.SharedWriteLocks();
+        final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.IgnoredWriteLocks();
 
         final Map<Integer, CacheLocks> allLocks = new ConcurrentHashMap<>();
         final List<CacheLocks.LockType> lockTypes = Collections.synchronizedList(new ArrayList<>());

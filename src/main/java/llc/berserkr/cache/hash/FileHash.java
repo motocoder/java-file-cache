@@ -100,7 +100,7 @@ public class FileHash {
 
     }
 
-    private final CacheLocks.SharedWriteLocks sharedLocks = new CacheLocks.SharedWriteLocks();
+    private final CacheLocks.SharedWriteLocks sharedLocks = new CacheLocks.IgnoredWriteLocks();
 
     private synchronized CacheLocks getLock(long key) {
 

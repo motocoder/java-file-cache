@@ -1,12 +1,12 @@
 package llc.berserkr.cache.hash;
 
+import llc.berserkr.cache.data.FIFOByteFileBuffer;
+import llc.berserkr.cache.data.RandomAccessFileWriter;
 import llc.berserkr.cache.exception.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.*;
 import java.util.*;
-
 import static llc.berserkr.cache.hash.SegmentedTransactions.*;
 import static llc.berserkr.cache.util.DataUtils.copyAndCount;
 
@@ -21,24 +21,32 @@ public class SegmentedStreamingDataManager implements SingleValueHashDataManager
     private static final Logger logger = LoggerFactory.getLogger(SegmentedStreamingDataManager.class);
 
     private final SegmentedFile segmentedFile;
-    private final File tempDirectory;
+    private final ThreadLocal<FIFOByteFileBuffer> fifo;
 
     public SegmentedStreamingDataManager(File segmentFile, File tempDirectory) {
 
         tempDirectory.mkdirs();
+        final File tempFile = new File(tempDirectory, UUID.randomUUID().toString());
 
         if(!tempDirectory.isDirectory() || !tempDirectory.exists()) {
             throw new IllegalArgumentException("temp directory is bad");
         }
+
+        this.fifo = ThreadLocal.withInitial(() -> {
+            try { //TODO make this memory size configurable
+                return new FIFOByteFileBuffer(50_000, new RandomAccessFileWriter(tempFile));
+            } catch (LinearStreamException e) {
+                throw new IllegalArgumentException("temp directory is bad2");
+            }
+        });
+
         this.segmentedFile = new SegmentedFile(segmentFile);
-        this.tempDirectory = tempDirectory;
+
     }
 
     @Override
     public InputStream getBlobsAt(long blobIndex) throws ReadFailure {
-
         return segmentedFile.readSegment(blobIndex);
-
     }
 
     @Override
@@ -55,10 +63,12 @@ public class SegmentedStreamingDataManager implements SingleValueHashDataManager
         //writting it from a stream.
         final int length;
 
-        final File tempFile = new File(tempDirectory, UUID.randomUUID().toString());
+        try {
 
-        try(final FileOutputStream fos = new FileOutputStream(tempFile)) {
-            length = copyAndCount(blobs, fos);
+            final OutputStream os = fifo.get().getOutputStream();
+
+            length = copyAndCount(blobs, os);
+
         } catch (IOException e) {
             throw new WriteFailure("failed", e);
         } finally {
@@ -104,15 +114,7 @@ public class SegmentedStreamingDataManager implements SingleValueHashDataManager
 
             final long transAddress = startWritingTransaction(segmentedFile, free);
 
-            try(final FileInputStream fis = new FileInputStream(tempFile)) {
-                segmentedFile.write(free, fis);
-            }
-            catch (IOException e) {
-                throw new WriteFailure("failed to write temp file", e);
-            }
-            finally {
-                tempFile.delete();
-            }
+            segmentedFile.write(free, fifo.get().getInputStream());
 
             segmentedFile.writeState(free, SegmentedFile.BOUND_STATE);
 
@@ -144,15 +146,7 @@ public class SegmentedStreamingDataManager implements SingleValueHashDataManager
 
             segmentedFile.setSegmentSize(address, split1);
 
-            try(final FileInputStream fis = new FileInputStream(tempFile)) {
-                segmentedFile.write(address, fis);
-            }
-            catch (IOException e2) {
-                throw new WriteFailure("failed to write temp file", e2);
-            }
-            finally {
-                tempFile.delete();
-            }
+            segmentedFile.write(address, fifo.get().getInputStream());
 
             segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
 
@@ -166,15 +160,7 @@ public class SegmentedStreamingDataManager implements SingleValueHashDataManager
 
             segmentedFile.setSegmentSize(e.getAddress(), e.getSegmentSize());
 
-            try(final FileInputStream fis = new FileInputStream(tempFile)) {
-                segmentedFile.write(e.getAddress(), fis);
-            }
-            catch (IOException e2) {
-                throw new WriteFailure("failed to write temp file", e2);
-            }
-            finally {
-                tempFile.delete();
-            }
+            segmentedFile.write(e.getAddress(), fifo.get().getInputStream());
 
             segmentedFile.writeState(e.getAddress(), SegmentedFile.BOUND_STATE);
 
@@ -186,21 +172,17 @@ public class SegmentedStreamingDataManager implements SingleValueHashDataManager
 
             final long transAddress = startAddTransaction(segmentedFile, length);
 
-            try(final FileInputStream fis = new FileInputStream(tempFile)) {
+            try {
 
                 //no free segments, add to the end of the segment file
-                final long address = segmentedFile.writeToEnd(fis);
+                final long address = segmentedFile.writeToEnd(fifo.get().getInputStream());
 
                 segmentedFile.writeState(address, SegmentedFile.BOUND_STATE);
 
                 return address;
             }
-            catch (IOException e2) {
-                throw new WriteFailure("failed to write temp file", e2);
-            }
             finally {
                 endTransactions(segmentedFile, transAddress);
-                tempFile.delete();
             }
 
         }

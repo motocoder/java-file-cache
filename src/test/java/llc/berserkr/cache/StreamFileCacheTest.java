@@ -231,8 +231,8 @@ public class StreamFileCacheTest {
 		
 		final ExecutorService pool = Executors.newFixedThreadPool(100);
 
-        final File tempFolder = new File("./target/test-files/" + UUID.randomUUID().toString() + "_temp-data");
-        final File dataFolder = new File("./target/test-files/" + UUID.randomUUID().toString() + "_data");
+        final File tempFolder = new File("./target/test-files/" + UUID.randomUUID() + "_temp-data");
+        final File dataFolder = new File("./target/test-files/" + UUID.randomUUID() + "_data");
         
         deleteRoot(tempFolder);
         deleteRoot(dataFolder);

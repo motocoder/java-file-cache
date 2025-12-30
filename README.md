@@ -10,6 +10,8 @@ Gradle import:
 implementation 'llc.berserkr:java-file-cache:1.0.0'
 ```
 
+Code interfacing:
+
 ```Java
 
 /****************************************************************************/

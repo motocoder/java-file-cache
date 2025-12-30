@@ -33,7 +33,7 @@ public abstract class DefaultResourceLoader<TKey, TValue> implements ResourceLoa
      * This method returns a List of TValues assigned to the
      * specified keys parameter.
      * 
-     * @return List<TValue>
+     * @return List TValue>
      * 
      */
 

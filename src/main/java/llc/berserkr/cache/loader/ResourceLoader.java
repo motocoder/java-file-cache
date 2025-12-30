@@ -44,7 +44,7 @@ public interface ResourceLoader<TKey, TValue> {
 	/**
 	 * 
 	 * @param keys
-	 * @return List<TValue> - The list returned must have the same length as the input list of keys
+	 * @return List TValue> - The list returned must have the same length as the input list of keys
 	 *           and the order values returned must match their associated keys.
 	 * @throws ResourceException
 	 */

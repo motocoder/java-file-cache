@@ -11,7 +11,7 @@ java {
 }
 
 group = 'llc.berserkr'
-version = '1.0.0'
+version = '1.0.1'
 
 repositories {
     mavenCentral()
@@ -36,89 +36,89 @@ test {
 }
 
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            groupId = 'llc.berserkr'
-            artifactId = 'java-file-cache'
-
-            from components.java
-
-            pom {
-                name = 'java-file-cache'
-                description = 'java file cache'
-                url = 'https://github.com/motocoder/java-file-cache'
-                inceptionYear = '2025'
-                licenses {
-                    license {
-                        name = 'MIT'
-                        url = 'https://github.com/motocoder/berserkr-logging?tab=MIT-1-ov-file#readme'
-                    }
-                }
-                developers {
-                    developer {
-                        id = 'motocoder'
-                        name = 'Sean Wagner'
-                    }
-                }
-                scm {
-                    connection = 'scm:git:https://github.com/motocoder/java-file-cache.git'
-                    developerConnection = 'scm:git:ssh://github.com/java-file-cache.git'
-                    url = 'https://github.com/motocoder/java-file-cache'
-                }
-            }
-        }
-    }
-
-    repositories {
-        maven {
-            url = layout.buildDirectory.dir('staging-deploy')
-        }
-    }
-}
-
-jreleaser {
-    signing {
-        active = 'ALWAYS'
-        armored = true
-    }
-    deploy {
-        maven {
-            mavenCentral {
-                sonatype {
-                    active = 'RELEASE'
-                    url = 'https://central.sonatype.com/api/v1/publisher'
-                    stagingRepository('build/staging-deploy')
-                }
-            }
-        }
-    }
-
-    environment {
-        // Location of a properties file with key/value pairs
-        // Each key must be prefixed with `JRELEASER_` and match
-        // the environment variable it overrides.
-        //
-        variables = '~/.jreleaser/config.toml'
-
-        // Additional properties used when evaluating templates.
-        //
-//        properties.put('foo', 'bar')
-    }
-
-}
-
 //publishing {
 //    publications {
-//        mavenJava(MavenPublication) {
-//            groupId = 'llc.berserkr' // Replace with your group ID
-//            artifactId = 'java-file-cache' // Replace with your artifact ID
-//            version = '1.0.0' // Replace with your version
+//        maven(MavenPublication) {
+//            groupId = 'llc.berserkr'
+//            artifactId = 'java-file-cache'
 //
 //            from components.java
+//
+//            pom {
+//                name = 'java-file-cache'
+//                description = 'java file cache'
+//                url = 'https://github.com/motocoder/java-file-cache'
+//                inceptionYear = '2025'
+//                licenses {
+//                    license {
+//                        name = 'MIT'
+//                        url = 'https://github.com/motocoder/berserkr-logging?tab=MIT-1-ov-file#readme'
+//                    }
+//                }
+//                developers {
+//                    developer {
+//                        id = 'motocoder'
+//                        name = 'Sean Wagner'
+//                    }
+//                }
+//                scm {
+//                    connection = 'scm:git:https://github.com/motocoder/java-file-cache.git'
+//                    developerConnection = 'scm:git:ssh://github.com/java-file-cache.git'
+//                    url = 'https://github.com/motocoder/java-file-cache'
+//                }
+//            }
 //        }
 //    }
+//
 //    repositories {
-//        mavenLocal()
+//        maven {
+//            url = layout.buildDirectory.dir('staging-deploy')
+//        }
 //    }
 //}
+//
+//jreleaser {
+//    signing {
+//        active = 'ALWAYS'
+//        armored = true
+//    }
+//    deploy {
+//        maven {
+//            mavenCentral {
+//                sonatype {
+//                    active = 'RELEASE'
+//                    url = 'https://central.sonatype.com/api/v1/publisher'
+//                    stagingRepository('build/staging-deploy')
+//                }
+//            }
+//        }
+//    }
+//
+//    environment {
+//        // Location of a properties file with key/value pairs
+//        // Each key must be prefixed with `JRELEASER_` and match
+//        // the environment variable it overrides.
+//        //
+//        variables = '~/.jreleaser/config.toml'
+//
+//        // Additional properties used when evaluating templates.
+//        //
+////        properties.put('foo', 'bar')
+//    }
+//
+//}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId = 'llc.berserkr' // Replace with your group ID
+            artifactId = 'java-file-cache' // Replace with your artifact ID
+            version = '1.0.1' // Replace with your version
+
+            from components.java
+        }
+    }
+    repositories {
+        mavenLocal()
+    }
+}

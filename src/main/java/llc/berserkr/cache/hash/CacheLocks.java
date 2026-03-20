@@ -30,8 +30,8 @@ public class CacheLocks {
 
     public enum LockType {READER, WRITER}
 
-    private int writers = 0;
-    private int readers = 0;
+    private volatile int writers = 0;
+    private volatile int readers = 0;
 
     public CacheLocks(SharedWriteLocks writeLocks) {
         this.writeLocks = writeLocks;
@@ -112,7 +112,7 @@ public class CacheLocks {
 
     public static class StandardSharedWriteLocks implements SharedWriteLocks {
 
-        private int writeLocks = 0;
+        private volatile int writeLocks = 0;
 
         @Override
         public synchronized int getLock(LockType lockType) {

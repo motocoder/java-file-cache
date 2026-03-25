@@ -11,7 +11,7 @@ java {
 }
 
 group = 'llc.berserkr'
-version = '1.0.1'
+version = '1.0.2'
 
 repositories {
     mavenCentral()
@@ -113,7 +113,7 @@ publishing {
         mavenJava(MavenPublication) {
             groupId = 'llc.berserkr' // Replace with your group ID
             artifactId = 'java-file-cache' // Replace with your artifact ID
-            version = '1.0.1' // Replace with your version
+            version = '1.0.2' // Replace with your version
 
             from components.java
         }

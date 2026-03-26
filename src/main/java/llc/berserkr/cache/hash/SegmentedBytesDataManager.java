@@ -202,14 +202,14 @@ public class SegmentedBytesDataManager implements HashDataManager<byte [], byte 
             return pairs;
         }
 
-        char count = bytesToChar(new byte [] {data[0], data[1]});
+        char count = bytesToChar(data, 0);
 
         int dataBase = 2;
 
         for(int i = 0; i < count; i++) {
 
-            final int pairLength = bytesToInt(new byte[] {data[dataBase], data[dataBase + 1], data[dataBase + 2], data[dataBase + 3]});
-            final int keyLength = bytesToInt(new byte[] {data[dataBase + 4], data[dataBase + 5], data[dataBase + 6], data[dataBase + 7]});
+            final int pairLength = bytesToInt(data, dataBase);
+            final int keyLength = bytesToInt(data, dataBase + 4);
 
             final byte [] keyData = new byte[keyLength];
             final byte [] payloadData = new byte[pairLength - keyLength];

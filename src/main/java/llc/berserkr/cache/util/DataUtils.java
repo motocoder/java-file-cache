@@ -4,8 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
@@ -263,41 +261,55 @@ public class DataUtils {
     }
 
     public static long bytesToLong(byte[] bytes) {
-        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getLong();
+        return bytesToLong(bytes, 0);
     }
 
-    public static int bytesToInt(byte [] bytes) {
-        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getInt();
+    public static long bytesToLong(byte[] bytes, int offset) {
+        return ((long)(bytes[offset]     & 0xFF))
+             | ((long)(bytes[offset + 1] & 0xFF)) << 8
+             | ((long)(bytes[offset + 2] & 0xFF)) << 16
+             | ((long)(bytes[offset + 3] & 0xFF)) << 24
+             | ((long)(bytes[offset + 4] & 0xFF)) << 32
+             | ((long)(bytes[offset + 5] & 0xFF)) << 40
+             | ((long)(bytes[offset + 6] & 0xFF)) << 48
+             | ((long)(bytes[offset + 7] & 0xFF)) << 56;
+    }
+
+    public static int bytesToInt(byte[] bytes) {
+        return bytesToInt(bytes, 0);
+    }
+
+    public static int bytesToInt(byte[] bytes, int offset) {
+        return  (bytes[offset]     & 0xFF)
+             | ((bytes[offset + 1] & 0xFF) << 8)
+             | ((bytes[offset + 2] & 0xFF) << 16)
+             | ((bytes[offset + 3] & 0xFF) << 24);
+    }
+
+    public static char bytesToChar(byte[] bytes, int offset) {
+        return (char)(((bytes[offset] & 0xFF) << 8) | (bytes[offset + 1] & 0xFF));
     }
 
     public static byte[] intToByteArray(int value) {
-        // Allocate a ByteBuffer with capacity for 4 bytes (an int)
-        ByteBuffer buffer = ByteBuffer.allocate(4);
-
-        // Set the byte order (e.g., BIG_ENDIAN or LITTLE_ENDIAN)
-        // BIG_ENDIAN is common for network protocols and human readability
-        buffer.order(ByteOrder.LITTLE_ENDIAN);
-
-        // Put the integer into the buffer
-        buffer.putInt(value);
-
-        // Return the byte array representation of the buffer's content
-        return buffer.array();
+        return new byte[] {
+            (byte)(value        & 0xFF),
+            (byte)((value >> 8) & 0xFF),
+            (byte)((value >> 16) & 0xFF),
+            (byte)((value >> 24) & 0xFF)
+        };
     }
 
     public static byte[] longToByteArray(long value) {
-        // Allocate a ByteBuffer with capacity for 4 bytes (an int)
-        ByteBuffer buffer = ByteBuffer.allocate(8);
-
-        // Set the byte order (e.g., BIG_ENDIAN or LITTLE_ENDIAN)
-        // BIG_ENDIAN is common for network protocols and human readability
-        buffer.order(ByteOrder.LITTLE_ENDIAN);
-
-        // Put the integer into the buffer
-        buffer.putLong(value);
-
-        // Return the byte array representation of the buffer's content
-        return buffer.array();
+        return new byte[] {
+            (byte)(value         & 0xFF),
+            (byte)((value >> 8)  & 0xFF),
+            (byte)((value >> 16) & 0xFF),
+            (byte)((value >> 24) & 0xFF),
+            (byte)((value >> 32) & 0xFF),
+            (byte)((value >> 40) & 0xFF),
+            (byte)((value >> 48) & 0xFF),
+            (byte)((value >> 56) & 0xFF)
+        };
     }
 
 }

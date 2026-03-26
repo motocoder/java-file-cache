@@ -31,7 +31,7 @@ public class FileHash {
     private final int hashSize;
     private final File file;
 
-    private final Map<Long, CacheLocks> hashLocks = new HashMap<>();
+    private final Map<Long, CacheLocks> hashLocks;
 
     private final SegmentedBytesDataManager blobManager;
     private final LocalRandomAccess localAccess;
@@ -42,6 +42,7 @@ public class FileHash {
         final int hashSize
     ) {
 
+        hashLocks = new HashMap<>(hashSize);
         this.blobManager = new SegmentedBytesDataManager(dataFile);
         
         this.hashSize = hashSize;

@@ -113,18 +113,7 @@ public class SegmentedFile {
 
                         if(transactionBytes[9] == WRITING_TRANSACTION) { //if the end one isn't set we didn't complete transaction start
 
-                            long address = bytesToLong(
-                                new byte[]{
-                                    transactionBytes[1],
-                                    transactionBytes[2],
-                                    transactionBytes[3],
-                                    transactionBytes[4],
-                                    transactionBytes[5],
-                                    transactionBytes[6],
-                                    transactionBytes[7],
-                                    transactionBytes[8]
-                                }
-                            );
+                            long address = bytesToLong(transactionBytes, 1);
 
                             writeState(address, FREE_STATE);
                         }
@@ -136,27 +125,9 @@ public class SegmentedFile {
 
                         if(transactionBytes[13] == MERGE_TRANSACTION) { //if the end one isn't set we didn't complete transaction start
 
-                            long address = bytesToLong(
-                                new byte[] {
-                                    transactionBytes[1],
-                                    transactionBytes[2],
-                                    transactionBytes[3],
-                                    transactionBytes[4],
-                                    transactionBytes[5],
-                                    transactionBytes[6],
-                                    transactionBytes[7],
-                                    transactionBytes[8],
-                                }
-                            );
+                            long address = bytesToLong(transactionBytes, 1);
 
-                            int length = bytesToInt(
-                                new byte[]{
-                                    transactionBytes[9],
-                                    transactionBytes[10],
-                                    transactionBytes[11],
-                                    transactionBytes[12]
-                                }
-                            );
+                            int length = bytesToInt(transactionBytes, 9);
 
                             writeState(address, FREE_STATE);
                             write(address, new byte[length]);
@@ -170,14 +141,7 @@ public class SegmentedFile {
                     case ADD_END_TRANSACTION: {
 
                         if(transactionBytes[5] == ADD_END_TRANSACTION) { //if the end one isn't set we didn't complete transaction start
-                            int length = bytesToInt(
-                                new byte[]{
-                                    transactionBytes[1],
-                                    transactionBytes[2],
-                                    transactionBytes[3],
-                                    transactionBytes[4]
-                                }
-                            );
+                            int length = bytesToInt(transactionBytes, 1);
 
                             long endAddress = this.findEnd();
 
@@ -1099,7 +1063,7 @@ public class SegmentedFile {
             return segmentTypes.get(address);
         }
 
-        public Integer getSegmentSize(long address) {
+        public synchronized Integer getSegmentSize(long address) {
             return segmentSizes.get(address);
         }
     }

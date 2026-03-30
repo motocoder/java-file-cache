@@ -35,7 +35,7 @@ public class SegmentedFile {
 
     private final LocalRandomAccess localAccess;
 
-    private long lastKnownAddress = START_OFFSET;
+    private volatile long lastKnownAddress = START_OFFSET;
 
     /**
      *
@@ -93,6 +93,7 @@ public class SegmentedFile {
             throw new RuntimeException(e);
         }
 
+        //this doesn't need synchronization locks yet because nothing it's in the constructor
         validateData();
 
     }
@@ -287,7 +288,7 @@ public class SegmentedFile {
         }
     }
 
-    public long findEnd() throws ReadFailure {
+    public synchronized long findEnd() throws ReadFailure { //this doesn't need to be synchronized since it only happens at construction but I'm adding a lock in case it moves later.
 
         long address = lastKnownAddress; //shortcut to the last address if we already know it
 

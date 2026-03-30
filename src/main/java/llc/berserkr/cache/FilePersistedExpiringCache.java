@@ -526,7 +526,7 @@ public class FilePersistedExpiringCache<Value> implements Cache<String, Value>{
     
     private static class ExpiringStates {
         
-        private long lastCleanup = System.currentTimeMillis();
+        private volatile long lastCleanup = System.currentTimeMillis();
         
         public ExpiringStates() {
             

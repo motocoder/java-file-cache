@@ -3,7 +3,7 @@ package llc.berserkr.cache.util;
 public class ParallelControl<Value> {
     
     private Object blockingLock = new Object();
-    private Value value;
+    private volatile Value value;
     private int unblockedCount;
     private int blockedCount;
     private boolean unblockAll;

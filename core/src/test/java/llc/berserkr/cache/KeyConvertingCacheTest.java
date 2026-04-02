@@ -27,7 +27,7 @@ public class KeyConvertingCacheTest {
 	private static ResourceLoader<String, byte[]> resourceLoader;
 	private static KeyConvertingCache<Long, String, byte[]> testCacheWithResourceLoader;
 
-	private static File rootDir = new File("./target/test-files/test1/");
+	private static File rootDir = new File("./test-files/test1/");
     private static File segments = new File(rootDir, "segments");
 	private static KeyConvertingCache<Long, byte [], byte[]> testCacheWithFileCache;
 
@@ -98,16 +98,32 @@ public class KeyConvertingCacheTest {
 
 	@BeforeEach
 	public void setUp() throws Exception {
+		deleteRoot(rootDir);
+		rootDir.mkdirs();
+		segments.mkdirs();
+		fileCache = new BytesFileCache(segments);
+		testCacheWithFileCache = new KeyConvertingCache<>(
+				fileCache,
+				new Converter<Long, byte[]>() {
+					@Override
+					public byte[] convert(Long aLong) throws ResourceException {
+						return longToByteArray(aLong);
+					}
+					@Override
+					public Long restore(byte[] newVal) throws ResourceException {
+						return bytesToLong(newVal);
+					}
+				}
+		);
 	}
 
 	@AfterEach
 	public void tearDown() throws Exception {
+		deleteRoot(rootDir);
 	}
 
 	@Test
 	public void testCacheFlavor() throws ResourceException {
-
-		deleteRoot(rootDir);
 
 		// Try a put and make sure a file is created.
 		testCacheWithFileCache.put(1L, TEST_VAL1.getBytes());
@@ -229,8 +245,13 @@ public class KeyConvertingCacheTest {
 
 	void deleteRoot (File root) {
 		if (root.exists()) {
-			for (File cacheFile: root.listFiles()){
-				cacheFile.delete();
+			if (root.isDirectory()) {
+				File[] children = root.listFiles();
+				if (children != null) {
+					for (File cacheFile : children) {
+						deleteRoot(cacheFile);
+					}
+				}
 			}
 			root.delete();
 		}

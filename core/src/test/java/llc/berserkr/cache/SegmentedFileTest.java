@@ -5,6 +5,7 @@ import llc.berserkr.cache.exception.ReadFailure;
 import llc.berserkr.cache.exception.SpaceFragementedException;
 import llc.berserkr.cache.exception.WriteFailure;
 import llc.berserkr.cache.hash.SegmentedFile;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -25,12 +26,13 @@ public class SegmentedFileTest {
 
     private static final Logger logger = LoggerFactory.getLogger(SegmentedFileTest.class);
 
-    public static File tempDir = new File("./file-cache-temp");
+    public static File tempDir = new File("./test-files");
     public static File segmentFile = new File(tempDir,"./segment");
     private File cacheDir;
 
     @BeforeEach
     public void setUp() throws Exception {
+        deleteRoot(tempDir);
 
         tempDir.mkdirs();
         cacheDir = new File(tempDir, "BerserkrCache");
@@ -49,6 +51,25 @@ public class SegmentedFileTest {
         }
         segmentFile.createNewFile();
 
+    }
+
+    @AfterEach
+    public void tearDown() {
+        deleteRoot(tempDir);
+    }
+
+    private void deleteRoot(File root) {
+        if (root.exists()) {
+            if (root.isDirectory()) {
+                File[] children = root.listFiles();
+                if (children != null) {
+                    for (File child : children) {
+                        deleteRoot(child);
+                    }
+                }
+            }
+            root.delete();
+        }
     }
 
     @Test

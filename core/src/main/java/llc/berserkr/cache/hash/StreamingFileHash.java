@@ -106,14 +106,12 @@ public class StreamingFileHash {
 
     }
 
-    private final CacheLocks.SharedWriteLocks sharedLocks = new CacheLocks.IgnoredWriteLocks();
-
     private synchronized CacheLocks getLock(long key) {
 
         CacheLocks returnVal = hashLocks.get(key);
 
         if(returnVal == null) {
-            returnVal = CacheLocks.create(sharedLocks);
+            returnVal = CacheLocksFactory.createWithIgnoredWriteLocks(true);
             hashLocks.put(key, returnVal);
         }
 

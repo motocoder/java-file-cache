@@ -4,6 +4,8 @@ import llc.berserkr.cache.converter.*;
 import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.util.StreamUtil;
 import llc.berserkr.cache.util.StringUtilities;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,8 +23,20 @@ import static org.junit.jupiter.api.Assertions.*;
 public class BytesFileCacheTest {
 
     private static final Logger logger = LoggerFactory.getLogger(BytesFileCacheTest.class);
+    private static final File TEST_ROOT = new File("./test-files");
 
-	@Test 
+    @BeforeEach
+    void cleanBefore() {
+        deleteRoot(TEST_ROOT);
+        TEST_ROOT.mkdirs();
+    }
+
+    @AfterEach
+    void cleanAfter() {
+        deleteRoot(TEST_ROOT);
+    }
+
+	@Test
 	public void universalTest() {
 
         final File tempFolder = new File("./test-files/temp-dataa");
@@ -131,15 +145,14 @@ public class BytesFileCacheTest {
 	
 	void deleteRoot (File root) {
         if (root.exists()) {
-            
-        	final File[] listed = root.listFiles();
-        	
-        	if(listed != null) {	        	
-	            for (File cacheFile: listed){
-	                cacheFile.delete();
-	            }
-        	}
-            
+            if (root.isDirectory()) {
+                final File[] listed = root.listFiles();
+                if (listed != null) {
+                    for (File cacheFile : listed) {
+                        deleteRoot(cacheFile);
+                    }
+                }
+            }
             root.delete();
         }
     }
@@ -149,8 +162,8 @@ public class BytesFileCacheTest {
 		
 		try {
 			
-	        final File tempFolder = new File("./target/test-files/temp-data");
-	        final File dataFolder = new File("./target/test-files/data");
+	        final File tempFolder = new File("./test-files/temp-data");
+	        final File dataFolder = new File("./test-files/data");
 	        
 	        deleteRoot(tempFolder);
 	        deleteRoot(dataFolder);
@@ -224,8 +237,8 @@ public class BytesFileCacheTest {
 		
 		final ExecutorService pool = Executors.newFixedThreadPool(100);
 
-        final File tempFolder = new File("./target/test-files/" + UUID.randomUUID().toString() + "temp-data");
-        final File dataFolder = new File("./target/test-files/"  + UUID.randomUUID().toString() + "data");
+        final File tempFolder = new File("./test-files/" + UUID.randomUUID().toString() + "temp-data");
+        final File dataFolder = new File("./test-files/"  + UUID.randomUUID().toString() + "data");
         
         deleteRoot(tempFolder);
         deleteRoot(dataFolder);
@@ -305,7 +318,7 @@ public class BytesFileCacheTest {
 		
 		try {
 	        
-			File root2 = new File("./target/test-files/" + UUID.randomUUID().toString() + "_temp-extra/");
+			File root2 = new File("./test-files/" + UUID.randomUUID().toString() + "_temp-extra/");
 			
 			deleteRoot(root2);
 			
@@ -370,8 +383,8 @@ public class BytesFileCacheTest {
 			
 			for (int x = 0; x < 18; x++) {
 				
-		        final File tempFolder = new File("./target/test-files/temp-data");
-		        final File dataFolder = new File("./target/test-files/data");
+		        final File tempFolder = new File("./test-files/temp-data");
+		        final File dataFolder = new File("./test-files/data");
 		        
 		        deleteRoot(tempFolder);
 		        deleteRoot(dataFolder);
@@ -430,14 +443,14 @@ public class BytesFileCacheTest {
 	@Test 
 	public void assortedTest() throws IOException {
 
-		final File root2 = new File("/target/test-files/tempor-dataa");
+		final File root2 = new File("./test-files/tempor-dataa");
 		
 		try {
 			
 			for (int x = 0; x < 18; x++) {
 				
-		        final File tempFolder = new File("./target/test-files/temp-data");
-		        final File dataFolder = new File("./target/test-files/data");
+		        final File tempFolder = new File("./test-files/temp-data");
+		        final File dataFolder = new File("./test-files/data");
 		        
 		        deleteRoot(tempFolder);
 		        deleteRoot(dataFolder);
@@ -493,9 +506,9 @@ public class BytesFileCacheTest {
         
         try {
                             
-            final File tempFolder = new File("./target/test-files/temp-data-repeatingKeyTest");
-            final File dataFolder = new File("./target/test-files/data-repeatingKeyTest");
-            final File dataFolderItem = new File("./target/test-files/data-repeatingKeyTest/data");
+            final File tempFolder = new File("./test-files/temp-data-repeatingKeyTest");
+            final File dataFolder = new File("./test-files/data-repeatingKeyTest");
+            final File dataFolderItem = new File("./test-files/data-repeatingKeyTest/data");
             
             deleteRoot(tempFolder);
             deleteRoot(dataFolder);
@@ -576,8 +589,8 @@ public class BytesFileCacheTest {
         
         try {
                             
-            final File tempFolder = new File("./target/test-files/temp-data-" + UUID.randomUUID() + "fileSizeTest2");
-            final File dataFolder = new File("./target/test-files/data-" + UUID.randomUUID() + "fileSizeTest2");
+            final File tempFolder = new File("./test-files/temp-data-" + UUID.randomUUID() + "fileSizeTest2");
+            final File dataFolder = new File("./test-files/data-" + UUID.randomUUID() + "fileSizeTest2");
 
             tempFolder.delete();
             dataFolder.delete();
@@ -644,9 +657,9 @@ public class BytesFileCacheTest {
         
         try {
                             
-            final File tempFolder = new File("./target/test-files/temp-data-repeatingKeyTest");
-            final File dataFolder = new File("./target/test-files/data-repeatingKeyTest");
-            final File dataFolderItem = new File("./target/test-files/data-repeatingKeyTest/data");
+            final File tempFolder = new File("./test-files/temp-data-repeatingKeyTest");
+            final File dataFolder = new File("./test-files/data-repeatingKeyTest");
+            final File dataFolderItem = new File("./test-files/data-repeatingKeyTest/data");
             
             deleteRoot(tempFolder);
             deleteRoot(dataFolder);

@@ -7,6 +7,8 @@ import llc.berserkr.cache.exception.LinearStreamException;
 import llc.berserkr.cache.exception.ReadFailure;
 import llc.berserkr.cache.exception.WriteFailure;
 import llc.berserkr.cache.util.StreamUtil;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
@@ -16,6 +18,31 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class FIFOByteFileBufferTest {
+
+    private static final File TEST_ROOT = new File("./test-files");
+
+    @BeforeEach
+    void cleanBefore() {
+        deleteRecursive(TEST_ROOT);
+        TEST_ROOT.mkdirs();
+    }
+
+    @AfterEach
+    void cleanAfter() {
+        deleteRecursive(TEST_ROOT);
+    }
+
+    private void deleteRecursive(File file) {
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    deleteRecursive(child);
+                }
+            }
+        }
+        file.delete();
+    }
 
     @Test
     public void testInMemoryRead() throws IOException {
@@ -110,7 +137,7 @@ public class FIFOByteFileBufferTest {
     @Test
     public void testFileWriter() throws IOException, WriteFailure, ReadFailure, LinearStreamException {
 
-        final  File tempDir = new File("./file-cache-temp");
+        final  File tempDir = new File("./test-files");
         final File testFile = new File(tempDir,"./file-writer-" + UUID.randomUUID());
 
         final RandomAccessFileWriter fileWriter = new RandomAccessFileWriter(testFile);

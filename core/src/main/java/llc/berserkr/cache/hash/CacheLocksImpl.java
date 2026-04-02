@@ -19,6 +19,10 @@ class CacheLocksImpl implements CacheLocks {
         this.writeLocks = writeLocks;
     }
 
+    static CacheLocks create(SharedWriteLocks sharedWriteLocks) {
+        return new CacheLocksImpl(sharedWriteLocks);
+    }
+
     @Override
     public void getLock(final LockType lockType) throws InterruptedException {
 

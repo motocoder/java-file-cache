@@ -41,7 +41,7 @@ package llc.berserkr.cache;
 //			Random random = new Random();
 //			String appendix = String.valueOf(Math.abs(random.nextInt()));
 //
-//			File root = new File("./target/test-files/temp" + appendix + "/");
+//			File root = new File("./test-files/temp" + appendix + "/");
 //
 //			deleteRoot(root);
 //
@@ -106,7 +106,7 @@ package llc.berserkr.cache;
 //
 //		try {
 //
-//			File root = new File("./target/test-files/temp" +  UUID.randomUUID() + "/");
+//			File root = new File("./test-files/temp" +  UUID.randomUUID() + "/");
 //
 //			deleteRoot(root);
 //
@@ -239,7 +239,7 @@ package llc.berserkr.cache;
 //			Random random = new Random();
 //			String appendix = String.valueOf(Math.abs(random.nextInt()));
 //
-//			File root = new File("./target/test-files/temp" + appendix + "/");
+//			File root = new File("./test-files/temp" + appendix + "/");
 //
 //			deleteRoot(root);
 //
@@ -311,7 +311,7 @@ package llc.berserkr.cache;
 //		Random random = new Random();
 //		String appendix = String.valueOf(Math.abs(random.nextInt()));
 //
-//		File root2 = new File("./target/test-files/temp" + appendix + "/");
+//		File root2 = new File("./test-files/temp" + appendix + "/");
 //
 //		deleteRoot(root2);
 //
@@ -431,7 +431,7 @@ package llc.berserkr.cache;
 //		Random random = new Random();
 //		String appendix = String.valueOf(Math.abs(random.nextInt()));
 //
-//		File root2 = new File("./target/test-files/temp" + appendix + "/");
+//		File root2 = new File("./test-files/temp" + appendix + "/");
 //
 //		deleteRoot(root2);
 //
@@ -511,7 +511,7 @@ package llc.berserkr.cache;
 //			Random random = new Random();
 //			String appendix = String.valueOf(Math.abs(random.nextInt()));
 //
-//			File root = new File("./target/test-files/temp" + appendix + "/");
+//			File root = new File("./test-files/temp" + appendix + "/");
 //
 //			deleteRoot(root);
 //
@@ -601,7 +601,7 @@ package llc.berserkr.cache;
 //			Random random = new Random();
 //			String appendix = String.valueOf(Math.abs(random.nextInt()));
 //
-//			File root = new File("./target/test-files/temp" + appendix + "/");
+//			File root = new File("./test-files/temp" + appendix + "/");
 //
 //			deleteRoot(root);
 //

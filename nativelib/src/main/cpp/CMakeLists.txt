@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(${CMAKE_PROJECT_NAME} SHARED
         nativelib.cpp
         cache/native_cache.cpp
+        cache/native_cache_locks.cpp
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
@@ -31,3 +32,10 @@ add_executable(native_cache_test EXCLUDE_FROM_ALL
 )
 target_include_directories(native_cache_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(native_cache_test GTest::gtest_main)
+
+add_executable(native_cache_locks_test EXCLUDE_FROM_ALL
+        tests/NativeCacheLocksTest.cpp
+        cache/native_cache_locks.cpp
+)
+target_include_directories(native_cache_locks_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(native_cache_locks_test GTest::gtest_main)

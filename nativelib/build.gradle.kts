@@ -39,6 +39,8 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+
 }
 
 val hostNativeBuildDir = layout.buildDirectory.dir("host-native")
@@ -51,15 +53,17 @@ val configureHostNative by tasks.registering(Exec::class) {
     outputs.file(hostNativeBuildDir.map { it.file("CMakeCache.txt") })
     doFirst { buildDir.mkdirs() }
     workingDir(buildDir)
-    commandLine(cmakeBin, file("src/test/cpp").absolutePath, "-DCMAKE_BUILD_TYPE=Release")
+    val javaHome = org.gradle.internal.jvm.Jvm.current().javaHome.absolutePath
+    commandLine(cmakeBin, file("src/test/cpp").absolutePath, "-DCMAKE_BUILD_TYPE=Release", "-DJAVA_HOME=$javaHome")
 }
 
 val buildNativeTests by tasks.registering(Exec::class) {
     dependsOn(configureHostNative)
     val buildDir = hostNativeBuildDir.get().asFile
     inputs.files(
-        fileTree("src/main/cpp/cache") { include("native_cache.cpp", "native_cache.h") },
-        file("src/main/cpp/tests/NativeCacheTest.cpp"),
+        fileTree("src/main/cpp/cache") { include("*.cpp", "*.h") },
+        fileTree("src/main/cpp/tests") { include("*.cpp") },
+        file("src/main/cpp/nativelib.cpp"),
     )
     outputs.dir(buildDir)
     workingDir(buildDir)
@@ -70,7 +74,7 @@ val runNativeTests by tasks.registering(Exec::class) {
     dependsOn(buildNativeTests)
     val buildDir = hostNativeBuildDir.get().asFile
     workingDir(buildDir)
-    commandLine("./native_cache_test", "--gtest_color=yes")
+    commandLine("sh", "-c", "./native_cache_test --gtest_color=yes && ./native_cache_locks_test --gtest_color=yes")
 }
 
 tasks.named("check") { dependsOn(runNativeTests) }

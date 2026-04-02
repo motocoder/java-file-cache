@@ -6,6 +6,8 @@ import llc.berserkr.cache.converter.StringSizeConverter;
 import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.util.StopWatch;
 import llc.berserkr.cache.util.StringUtilities;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +26,18 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class FilePersistedExpiringCacheTest {
 
 	private static final Logger logger = LoggerFactory.getLogger(FilePersistedExpiringCacheTest.class);
+	private static final File TEST_ROOT = new File("./test-files");
+
+	@BeforeEach
+	void cleanBefore() {
+		deleteRoot(TEST_ROOT);
+		TEST_ROOT.mkdirs();
+	}
+
+	@AfterEach
+	void cleanAfter() {
+		deleteRoot(TEST_ROOT);
+	}
 
 	@Test
 	public void FilePersistedExpiringCacheMultithreadedTest() throws IOException {
@@ -35,7 +49,7 @@ public class FilePersistedExpiringCacheTest {
 			Random random = new Random();
 			String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-			File root = new File("./target/test-files/temp" + appendix + "/");
+			File root = new File("./test-files/temp" + appendix + "/");
 
 			deleteRoot(root);
 
@@ -146,7 +160,7 @@ public class FilePersistedExpiringCacheTest {
 			Random random = new Random();
 			String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-			File root = new File("./target/test-files/temp" + appendix + "/");
+			File root = new File("./test-files/temp" + appendix + "/");
 
 			deleteRoot(root);
 
@@ -228,7 +242,7 @@ public class FilePersistedExpiringCacheTest {
 			Random random = new Random();
 			String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-			File root = new File("./target/test-files/temp" + appendix + "/");
+			File root = new File("./test-files/temp" + appendix + "/");
 
 			deleteRoot(root);
 
@@ -299,10 +313,12 @@ public class FilePersistedExpiringCacheTest {
 
 	void deleteRoot(File root) {
 		if (root.exists()) {
-
-			if (root.listFiles() != null) {
-				for (File cacheFile : root.listFiles()) {
-					cacheFile.delete();
+			if (root.isDirectory()) {
+				final File[] listed = root.listFiles();
+				if (listed != null) {
+					for (File cacheFile : listed) {
+						deleteRoot(cacheFile);
+					}
 				}
 			}
 			root.delete();

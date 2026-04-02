@@ -2,6 +2,7 @@ package llc.berserkr.cache;
 
 import llc.berserkr.cache.hash.CacheLocks;
 import llc.berserkr.cache.hash.CacheLocksFactory;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,10 +15,23 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-public class CacheLocksTest {
+public class NativeCacheLocksImplTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(CacheLocksTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(NativeCacheLocksImplTest.class);
+
+    private static boolean nativeAvailable = false;
+
+    @BeforeAll
+    static void loadNative() {
+        try {
+            System.loadLibrary("nativelib");
+            nativeAvailable = true;
+        } catch (UnsatisfiedLinkError e) {
+            logger.warn("Native library not available, skipping native lock tests: " + e.getMessage());
+        }
+    }
 
     boolean flag2 = false;
     boolean flag1 = false;
@@ -27,10 +41,11 @@ public class CacheLocksTest {
 
     @Test
     public void testLock() throws InterruptedException {
+        assumeTrue(nativeAvailable, "Native library not loaded");
 
         final ExecutorService executor = Executors.newCachedThreadPool();
 
-        final CacheLocks locks = CacheLocksFactory.createJavaWithIgnoredWriteLocks();
+        final CacheLocks locks = CacheLocksFactory.createNativeWithIgnoredWriteLocks();
 
         {
 
@@ -102,10 +117,11 @@ public class CacheLocksTest {
 
     @Test
     public void testWriterLock() throws InterruptedException {
+        assumeTrue(nativeAvailable, "Native library not loaded");
 
         final ExecutorService executor = Executors.newCachedThreadPool();
 
-        final CacheLocks locks = CacheLocksFactory.createJavaWithIgnoredWriteLocks();
+        final CacheLocks locks = CacheLocksFactory.createNativeWithIgnoredWriteLocks();
 
         flag1 = false;
         flag2 = false;
@@ -147,11 +163,12 @@ public class CacheLocksTest {
 
     @Test
     public void testLockShared() throws InterruptedException {
+        assumeTrue(nativeAvailable, "Native library not loaded");
 
         final ExecutorService executor = Executors.newCachedThreadPool();
 
-        final CacheLocks locks = CacheLocksFactory.createJavaWithIgnoredWriteLocks();
-        final CacheLocks locks2 = CacheLocksFactory.createJavaWithIgnoredWriteLocks();
+        final CacheLocks locks = CacheLocksFactory.createNativeWithIgnoredWriteLocks();
+        final CacheLocks locks2 = CacheLocksFactory.createNativeWithIgnoredWriteLocks();
 
         //alright lets do the shared locks now.
         {
@@ -210,6 +227,7 @@ public class CacheLocksTest {
 
     @Test
     public void testLotsOfThreads() throws InterruptedException {
+        assumeTrue(nativeAvailable, "Native library not loaded");
 
         final ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -228,7 +246,7 @@ public class CacheLocksTest {
         }
 
         for(int i = 0; i < LOCK_COUNT; i++) {
-            allLocks.put(i, CacheLocksFactory.createJavaWithIgnoredWriteLocks());
+            allLocks.put(i, CacheLocksFactory.createNativeWithIgnoredWriteLocks());
         }
 
         {
@@ -263,13 +281,13 @@ public class CacheLocksTest {
                         lock.getLock(type);
 
                         switch (type) {
-                            case READER -> {
+                            case READER:
                                 readersReading.incrementAndGet();
-                            }
-                            case WRITER -> {
+                                break;
+                            case WRITER:
                                 writersWriting.incrementAndGet();
                                 Thread.sleep(1);
-                            }
+                                break;
                         }
 
                         if (writersWriting.get() > 1) {
@@ -277,12 +295,12 @@ public class CacheLocksTest {
                         }
 
                         switch (type) {
-                            case READER -> {
+                            case READER:
                                 readersReading.decrementAndGet();
-                            }
-                            case WRITER -> {
+                                break;
+                            case WRITER:
                                 writersWriting.decrementAndGet();
-                            }
+                                break;
                         }
 
                     } catch (InterruptedException e) {
@@ -323,6 +341,7 @@ public class CacheLocksTest {
 
     @Test
     public void testBS() {
+        assumeTrue(nativeAvailable, "Native library not loaded");
 
         int alpha = (int) ((Math.min(System.currentTimeMillis() - (System.currentTimeMillis() - 200), 300) / 300f) * 255);
         logger.info("alpha = " + alpha);

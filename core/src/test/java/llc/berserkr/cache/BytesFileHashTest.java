@@ -4,6 +4,7 @@ import llc.berserkr.cache.exception.ReadFailure;
 import llc.berserkr.cache.exception.WriteFailure;
 import llc.berserkr.cache.hash.FileHash;
 import llc.berserkr.cache.hash.SegmentedBytesDataManager;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -22,13 +23,14 @@ public class BytesFileHashTest {
     
     private static final Logger logger = LoggerFactory.getLogger(BytesFileHashTest.class);
 
-    public static File tempDir = new File("./file-cache-temp");
+    public static File tempDir = new File("./test-files");
     public static File segmentFile = new File(tempDir,"./segment");
     public static File hashFile = new File(tempDir,"./hash");
     private File cacheDir;
 
     @BeforeEach
     public void setUp() throws Exception {
+        deleteRoot(tempDir);
 
         tempDir.mkdirs();
         cacheDir = new File(tempDir, "BerserkrCache");
@@ -56,6 +58,11 @@ public class BytesFileHashTest {
         }
         hashFile.createNewFile();
 
+    }
+
+    @AfterEach
+    public void tearDown() {
+        deleteRoot(tempDir);
     }
 
     @Test
@@ -317,10 +324,12 @@ public class BytesFileHashTest {
 
     void deleteRoot (File root) {
         if (root.exists()) {
-            
-            if(root.listFiles() != null) {
-                for (File cacheFile: root.listFiles()){
-                    cacheFile.delete();
+            if (root.isDirectory()) {
+                final File[] listed = root.listFiles();
+                if (listed != null) {
+                    for (File cacheFile : listed) {
+                        deleteRoot(cacheFile);
+                    }
                 }
             }
             root.delete();

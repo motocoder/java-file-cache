@@ -25,6 +25,9 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    // Host-built native shared library lives in nativelib's host-native build dir
+    val nativeLibDir = project(":nativelib").layout.buildDirectory.dir("host-native").get().asFile
+    systemProperty("java.library.path", nativeLibDir.absolutePath)
 }
 
 publishing {

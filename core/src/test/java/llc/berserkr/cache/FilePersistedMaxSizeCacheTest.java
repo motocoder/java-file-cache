@@ -3,6 +3,8 @@ package llc.berserkr.cache;
 import llc.berserkr.cache.converter.*;
 import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.util.StringUtilities;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,8 +26,20 @@ import static org.junit.jupiter.api.Assertions.*;
 public class FilePersistedMaxSizeCacheTest {
 
 	private static final Logger logger = LoggerFactory.getLogger(FilePersistedMaxSizeCacheTest.class);
+	private static final File TEST_ROOT = new File("./test-files");
 
 	private static final byte[] TEN_BYTES = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+
+	@BeforeEach
+	void cleanBefore() {
+		deleteRoot(TEST_ROOT);
+		TEST_ROOT.mkdirs();
+	}
+
+	@AfterEach
+	void cleanAfter() {
+		deleteRoot(TEST_ROOT);
+	}
 
 	@Test
 	public void testPersistedPart() throws IOException {
@@ -33,7 +47,7 @@ public class FilePersistedMaxSizeCacheTest {
 		Random random = new Random();
 		String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-		File root2 = new File("./target/test-files/temp" + appendix + "/");
+		File root2 = new File("./test-files/temp" + appendix + "/");
 
 		deleteRoot(root2);
 
@@ -153,7 +167,7 @@ public class FilePersistedMaxSizeCacheTest {
 		Random random = new Random();
 		String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-		File root2 = new File("./target/test-files/temp" + appendix + "/");
+		File root2 = new File("./test-files/temp" + appendix + "/");
 
 		deleteRoot(root2);
 
@@ -235,7 +249,7 @@ public class FilePersistedMaxSizeCacheTest {
 			Random random = new Random();
 			String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-			File root = new File("./target/test-files/temp" + appendix + "/");
+			File root = new File("./test-files/temp" + appendix + "/");
 
 			deleteRoot(root);
 
@@ -326,7 +340,7 @@ public class FilePersistedMaxSizeCacheTest {
 			Random random = new Random();
 			String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-			File root = new File("./target/test-files/temp" + appendix + "/");
+			File root = new File("./test-files/temp" + appendix + "/");
 
 			deleteRoot(root);
 
@@ -410,7 +424,7 @@ public class FilePersistedMaxSizeCacheTest {
 			Random random = new Random();
 			String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-			File root = new File("./target/test-files/temp" + appendix + "/");
+			File root = new File("./test-files/temp" + appendix + "/");
 
 			deleteRoot(root);
 
@@ -545,7 +559,7 @@ public class FilePersistedMaxSizeCacheTest {
 			Random random = new Random();
 			String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-			File root = new File("./target/test-files/temp" + appendix + "/");
+			File root = new File("./test-files/temp" + appendix + "/");
 
 			deleteRoot(root);
 
@@ -622,7 +636,7 @@ public class FilePersistedMaxSizeCacheTest {
             Random random = new Random();
             String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-            File root = new File("./target/test-files/temp" + appendix + "/");
+            File root = new File("./test-files/temp" + appendix + "/");
 
             deleteRoot(root);
 
@@ -712,7 +726,7 @@ public class FilePersistedMaxSizeCacheTest {
 			Random random = new Random();
 			String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-			File root = new File("./target/test-files/temp" + appendix + "/");
+			File root = new File("./test-files/temp" + appendix + "/");
 
 			deleteRoot(root);
 
@@ -794,19 +808,15 @@ public class FilePersistedMaxSizeCacheTest {
 	void deleteRoot(File root) {
 
 		if (root.exists()) {
-
-			final File[] fileList = root.listFiles();
-
-			if (fileList != null) {
-
-				for (File cacheFile : fileList) {
-					cacheFile.delete();
+			if (root.isDirectory()) {
+				final File[] fileList = root.listFiles();
+				if (fileList != null) {
+					for (File cacheFile : fileList) {
+						deleteRoot(cacheFile);
+					}
 				}
-
 			}
-
 			root.delete();
-
 		}
 	}
 

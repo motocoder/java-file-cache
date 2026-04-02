@@ -1,5 +1,6 @@
 #include <jni.h>
 #include "cache/native_cache.h"
+#include "cache/native_cache_locks.h"
 
 extern "C" {
 
@@ -90,6 +91,73 @@ JNIEXPORT jint JNICALL
 Java_llc_berserkr_cache_NativeCacheBridge_nativeGetEntryCount(JNIEnv* env, jobject thiz, jlong handle) {
     auto* cache = reinterpret_cast<NativeCache*>(handle);
     return cache->getEntryCount();
+}
+
+// =====================================================================
+// NativeSharedWriteLocks JNI bridge
+// =====================================================================
+
+JNIEXPORT jlong JNICALL
+Java_llc_berserkr_cache_hash_NativeSharedWriteLocks_nativeCreateIgnored(JNIEnv* env, jclass clazz) {
+    return reinterpret_cast<jlong>(new IgnoredSharedWriteLocks());
+}
+
+JNIEXPORT jlong JNICALL
+Java_llc_berserkr_cache_hash_NativeSharedWriteLocks_nativeCreateStandard(JNIEnv* env, jclass clazz) {
+    return reinterpret_cast<jlong>(new StandardSharedWriteLocks());
+}
+
+JNIEXPORT void JNICALL
+Java_llc_berserkr_cache_hash_NativeSharedWriteLocks_nativeDestroy(JNIEnv* env, jclass clazz, jlong handle) {
+    delete reinterpret_cast<SharedWriteLocks*>(handle);
+}
+
+JNIEXPORT jint JNICALL
+Java_llc_berserkr_cache_hash_NativeSharedWriteLocks_nativeGetLock(JNIEnv* env, jclass clazz, jlong handle, jboolean isWriter) {
+    auto* locks = reinterpret_cast<SharedWriteLocks*>(handle);
+    std::lock_guard<std::mutex> guard(locks->mtx);
+    return locks->getLock(isWriter);
+}
+
+JNIEXPORT void JNICALL
+Java_llc_berserkr_cache_hash_NativeSharedWriteLocks_nativeReleaseLock(JNIEnv* env, jclass clazz, jlong handle) {
+    auto* locks = reinterpret_cast<SharedWriteLocks*>(handle);
+    std::lock_guard<std::mutex> guard(locks->mtx);
+    locks->releaseLock();
+}
+
+JNIEXPORT jint JNICALL
+Java_llc_berserkr_cache_hash_NativeSharedWriteLocks_nativePeekLock(JNIEnv* env, jclass clazz, jlong handle) {
+    auto* locks = reinterpret_cast<SharedWriteLocks*>(handle);
+    std::lock_guard<std::mutex> guard(locks->mtx);
+    return locks->peekLock();
+}
+
+// =====================================================================
+// NativeCacheLocksImpl JNI bridge
+// =====================================================================
+
+JNIEXPORT jlong JNICALL
+Java_llc_berserkr_cache_hash_NativeCacheLocksImpl_nativeCreate(JNIEnv* env, jclass clazz, jlong sharedHandle) {
+    auto* shared = reinterpret_cast<SharedWriteLocks*>(sharedHandle);
+    return reinterpret_cast<jlong>(new NativeCacheLocks(shared));
+}
+
+JNIEXPORT void JNICALL
+Java_llc_berserkr_cache_hash_NativeCacheLocksImpl_nativeDestroy(JNIEnv* env, jclass clazz, jlong handle) {
+    delete reinterpret_cast<NativeCacheLocks*>(handle);
+}
+
+JNIEXPORT void JNICALL
+Java_llc_berserkr_cache_hash_NativeCacheLocksImpl_nativeGetLock(JNIEnv* env, jclass clazz, jlong handle, jboolean isWriter) {
+    auto* locks = reinterpret_cast<NativeCacheLocks*>(handle);
+    locks->getLock(isWriter);
+}
+
+JNIEXPORT void JNICALL
+Java_llc_berserkr_cache_hash_NativeCacheLocksImpl_nativeReleaseLock(JNIEnv* env, jclass clazz, jlong handle, jboolean isWriter) {
+    auto* locks = reinterpret_cast<NativeCacheLocks*>(handle);
+    locks->releaseLock(isWriter);
 }
 
 } // extern "C"

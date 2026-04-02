@@ -6,6 +6,8 @@ import llc.berserkr.cache.converter.ReverseConverter;
 import llc.berserkr.cache.converter.SerializingConverter;
 import llc.berserkr.cache.exception.ResourceException;
 import llc.berserkr.cache.util.StringUtilities;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,8 +28,20 @@ import static org.junit.jupiter.api.Assertions.*;
 public class FilePersistedMaxCountCacheTest {
 
 	private static final Logger logger = LoggerFactory.getLogger(FilePersistedMaxCountCacheTest.class);
+	private static final File TEST_ROOT = new File("./test-files");
 
 	private static final byte[] TEN_BYTES = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+
+	@BeforeEach
+	void cleanBefore() {
+		deleteRoot(TEST_ROOT);
+		TEST_ROOT.mkdirs();
+	}
+
+	@AfterEach
+	void cleanAfter() {
+		deleteRoot(TEST_ROOT);
+	}
 
 	boolean removed = false;
 
@@ -43,7 +57,7 @@ public class FilePersistedMaxCountCacheTest {
 			Random random = new Random();
 			String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-			File root = new File("./target/test-files/temp" + appendix + "/");
+			File root = new File("./test-files/temp" + appendix + "/");
 
 			deleteRoot(root);
 
@@ -138,7 +152,7 @@ public class FilePersistedMaxCountCacheTest {
 		try {
 
 
-			File root = new File("./target/test-files/temp" + UUID.randomUUID() + "/");
+			File root = new File("./test-files/temp" + UUID.randomUUID() + "/");
 
 			deleteRoot(root);
 
@@ -265,7 +279,7 @@ public class FilePersistedMaxCountCacheTest {
 			Random random = new Random();
 			String appendix = String.valueOf(Math.abs(random.nextInt()));
 
-			File root = new File("./target/test-files/temp" + appendix + "/");
+			File root = new File("./test-files/temp" + appendix + "/");
 
 			deleteRoot(root);
 
@@ -345,7 +359,7 @@ public class FilePersistedMaxCountCacheTest {
 	public void testPersistedPart() throws IOException {
 
 
-		File root2 = new File("./target/test-files/temp" + UUID.randomUUID() + "/");
+		File root2 = new File("./test-files/temp" + UUID.randomUUID() + "/");
 
 		deleteRoot(root2);
 
@@ -472,19 +486,15 @@ public class FilePersistedMaxCountCacheTest {
 	void deleteRoot(File root) {
 
 		if (root.exists()) {
-
-			final File[] fileList = root.listFiles();
-
-			if (fileList != null) {
-
-				for (File cacheFile : fileList) {
-					cacheFile.delete();
+			if (root.isDirectory()) {
+				final File[] fileList = root.listFiles();
+				if (fileList != null) {
+					for (File cacheFile : fileList) {
+						deleteRoot(cacheFile);
+					}
 				}
-
 			}
-
 			root.delete();
-
 		}
 	}
 

@@ -2,6 +2,8 @@ package llc.berserkr.cache;
 
 import llc.berserkr.cache.converter.*;
 import llc.berserkr.cache.exception.ResourceException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,8 +18,20 @@ import static org.junit.jupiter.api.Assertions.*;
 public class CacheVaryingConfigurationTest {
 
 	private static final Logger logger = LoggerFactory.getLogger(FilePersistedMaxSizeCacheTest.class);
+	private static final File TEST_ROOT = new File("./test-files");
 
 	private static final byte [] TEN_BYTES = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+
+	@BeforeEach
+	void cleanBefore() {
+		deleteRoot(TEST_ROOT);
+		TEST_ROOT.mkdirs();
+	}
+
+	@AfterEach
+	void cleanAfter() {
+		deleteRoot(TEST_ROOT);
+	}
 
 	@Test
 	public void testStackedMaxSizeInExpiringCaches() throws IOException {
@@ -25,7 +39,7 @@ public class CacheVaryingConfigurationTest {
 		final int maxSize = 180;
 		final int expireTimeout = 2000;
 
-		final File cacheRoot = new File("./target/test-files/temp2" + UUID.randomUUID() + "/");
+		final File cacheRoot = new File("./test-files/temp2" + UUID.randomUUID() + "/");
 
 		deleteRoot(cacheRoot);
 
@@ -198,7 +212,7 @@ public class CacheVaryingConfigurationTest {
 		final int maxSize = 180;
 		final int expireTimeout = 2000;
 
-		final File cacheRoot = new File("./target/test-files/" + UUID.randomUUID() + "temp3/");
+		final File cacheRoot = new File("./test-files/" + UUID.randomUUID() + "temp3/");
 
 		deleteRoot(cacheRoot);
 
@@ -357,10 +371,12 @@ public class CacheVaryingConfigurationTest {
 
 	void deleteRoot (File root) {
         if (root.exists()) {
-
-            if(root.listFiles() != null) {
-                for (File cacheFile: root.listFiles()){
-                    cacheFile.delete();
+            if (root.isDirectory()) {
+                File[] children = root.listFiles();
+                if (children != null) {
+                    for (File cacheFile : children) {
+                        deleteRoot(cacheFile);
+                    }
                 }
             }
             root.delete();

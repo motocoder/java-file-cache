@@ -25,12 +25,22 @@ public interface CacheLocks {
 
     void releaseLock(LockType lockType);
 
+    /**
+     * Coordinates write visibility across multiple CacheLocks instances that share the same
+     * SharedWriteLocks. Each CacheLocks instance guards a single key (hash bucket), but
+     * SharedWriteLocks controls whether writes on one key block reads on all other keys.
+     */
     interface SharedWriteLocks {
         int getLock(LockType lockType);
         void releaseLock();
         int peekLock();
     }
 
+    /**
+     * Global write lock — when any key is being written, all reads on all keys are blocked
+     * until the write completes. This was used for an older cache design before per-bucket
+     * locking was optimized. Retained for cases that require strict global consistency.
+     */
     class StandardSharedWriteLocks implements SharedWriteLocks {
 
         private volatile int writeLocks = 0;
@@ -55,6 +65,12 @@ public interface CacheLocks {
         }
     }
 
+    /**
+     * Per-key locking only — writes on one key do not block reads or writes on other keys.
+     * Only concurrent access to the same key is synchronized: a write blocks reads and other
+     * writes on that key, but concurrent reads of the same key are allowed. This is the
+     * optimized default used by FileHash and StreamingFileHash.
+     */
     class IgnoredWriteLocks implements SharedWriteLocks {
 
         @Override
@@ -70,9 +86,5 @@ public interface CacheLocks {
         public int peekLock() {
             return 0;
         }
-    }
-
-    static CacheLocks create(SharedWriteLocks sharedWriteLocks) {
-        return new CacheLocksImpl(sharedWriteLocks);
     }
 }

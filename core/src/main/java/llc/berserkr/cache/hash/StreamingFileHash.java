@@ -113,7 +113,7 @@ public class StreamingFileHash {
         CacheLocks returnVal = hashLocks.get(key);
 
         if(returnVal == null) {
-            returnVal = new CacheLocks(sharedLocks);
+            returnVal = CacheLocks.create(sharedLocks);
             hashLocks.put(key, returnVal);
         }
 

@@ -30,7 +30,7 @@ public class CacheLocksTest {
         final ExecutorService executor = Executors.newCachedThreadPool();
 
         final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.IgnoredWriteLocks();
-        final CacheLocks locks = new CacheLocks(sharedWriteLocks);
+        final CacheLocks locks = CacheLocks.create(sharedWriteLocks);
 
         {
 
@@ -106,7 +106,7 @@ public class CacheLocksTest {
         final ExecutorService executor = Executors.newCachedThreadPool();
 
         final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.IgnoredWriteLocks();
-        final CacheLocks locks = new CacheLocks(sharedWriteLocks);
+        final CacheLocks locks = CacheLocks.create(sharedWriteLocks);
 
         flag1 = false;
         flag2 = false;
@@ -152,8 +152,8 @@ public class CacheLocksTest {
         final ExecutorService executor = Executors.newCachedThreadPool();
 
         final CacheLocks.SharedWriteLocks sharedWriteLocks = new CacheLocks.IgnoredWriteLocks();
-        final CacheLocks locks = new CacheLocks(sharedWriteLocks);
-        final CacheLocks locks2 = new CacheLocks(sharedWriteLocks);
+        final CacheLocks locks = CacheLocks.create(sharedWriteLocks);
+        final CacheLocks locks2 = CacheLocks.create(sharedWriteLocks);
 
         //alright lets do the shared locks now.
         {
@@ -232,7 +232,7 @@ public class CacheLocksTest {
         }
 
         for(int i = 0; i < LOCK_COUNT; i++) {
-            allLocks.put(i, new CacheLocks(sharedWriteLocks));
+            allLocks.put(i, CacheLocks.create(sharedWriteLocks));
         }
 
         {

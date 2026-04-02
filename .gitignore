@@ -13,3 +13,8 @@ build/
 .externalNativeBuild
 .cxx
 local.properties
+/core/file-cache-temp/
+/core/target/
+/core/test-files/
+/nativelib/.cxx
+/nativelib/build

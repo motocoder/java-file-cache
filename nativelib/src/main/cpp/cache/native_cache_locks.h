@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mutex>
+#include <shared_mutex>
 #include <condition_variable>
 #include <stdexcept>
 
@@ -8,15 +9,16 @@
 /// the same SharedWriteLocks. Each NativeCacheLocks guards a single key (hash bucket),
 /// but SharedWriteLocks controls whether writes on one key block reads on all other keys.
 ///
-/// The mutex and condition_variable live here because in the Java version,
-/// all CacheLocks instances sharing the same SharedWriteLocks synchronize on
-/// and wait/notify on that single shared object.
+/// The mutex and condition_variable live here for the StandardSharedWriteLocks slow path,
+/// where all CacheLocks instances sharing the same SharedWriteLocks must coordinate globally.
 class SharedWriteLocks {
 public:
     std::mutex mtx;
     std::condition_variable cv;
 
     virtual ~SharedWriteLocks() = default;
+
+    virtual bool isIgnored() const { return false; }
 
     /// Called while mtx is held — no internal locking needed.
     virtual int getLock(bool isWriter) = 0;
@@ -30,6 +32,7 @@ public:
 /// optimized default used by FileHash and StreamingFileHash.
 class IgnoredSharedWriteLocks : public SharedWriteLocks {
 public:
+    bool isIgnored() const override { return true; }
     int getLock(bool /*isWriter*/) override { return 0; }
     void releaseLock() override {}
     int peekLock() override { return 0; }
@@ -50,8 +53,13 @@ public:
 };
 
 /// Native implementation of CacheLocks. Mirrors CacheLocksImpl from Java.
-/// Uses the shared mutex/cv from SharedWriteLocks for synchronization,
-/// matching the Java pattern where synchronized(writeLocks) is the monitor.
+///
+/// When using IgnoredSharedWriteLocks (the default), each instance uses its own
+/// std::shared_mutex for a kernel-optimized reader-writer lock with zero contention
+/// between different lock instances.
+///
+/// When using StandardSharedWriteLocks, falls back to the shared mutex/cv pattern
+/// for global write coordination.
 class NativeCacheLocks {
 public:
     explicit NativeCacheLocks(SharedWriteLocks* shared);
@@ -62,6 +70,17 @@ public:
 
 private:
     SharedWriteLocks* shared_;
+    bool fastPath_;
+
+    // Fast path: per-instance shared_mutex (used when SharedWriteLocks is ignored)
+    std::shared_mutex rwlock_;
+
+    // Slow path state (used when SharedWriteLocks is NOT ignored)
     int writers_ = 0;
     int readers_ = 0;
+
+    void getLockFast(bool isWriter);
+    void releaseLockFast(bool isWriter);
+    void getLockSlow(bool isWriter);
+    void releaseLockSlow(bool isWriter);
 };

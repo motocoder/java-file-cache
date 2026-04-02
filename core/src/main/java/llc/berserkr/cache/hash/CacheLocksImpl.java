@@ -1,22 +1,23 @@
 package llc.berserkr.cache.hash;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-/**
- * TODO write this in C
- */
 class CacheLocksImpl implements CacheLocks {
 
-    private static final Logger logger = LoggerFactory.getLogger(CacheLocksImpl.class);
-
     private final SharedWriteLocks writeLocks;
+    private final boolean fastPath;
 
+    // Fast path: per-instance monitor object (used when SharedWriteLocks is ignored).
+    // Each instance synchronizes on its own lock object instead of the shared one,
+    // eliminating cross-instance contention.
+    private final Object localLock;
+
+    // Slow path synchronizes on writeLocks (shared across instances).
     private volatile int writers = 0;
     private volatile int readers = 0;
 
     CacheLocksImpl(SharedWriteLocks writeLocks) {
         this.writeLocks = writeLocks;
+        this.fastPath = writeLocks instanceof IgnoredWriteLocks;
+        this.localLock = fastPath ? new Object() : null;
     }
 
     static CacheLocks create(SharedWriteLocks sharedWriteLocks) {
@@ -25,37 +26,80 @@ class CacheLocksImpl implements CacheLocks {
 
     @Override
     public void getLock(final LockType lockType) throws InterruptedException {
+        if (fastPath) {
+            getLockFast(lockType);
+        } else {
+            getLockSlow(lockType);
+        }
+    }
 
-        while(true) {
+    @Override
+    public void releaseLock(LockType lockType) {
+        if (fastPath) {
+            releaseLockFast(lockType);
+        } else {
+            releaseLockSlow(lockType);
+        }
+    }
 
-            synchronized(writeLocks) {
+    // Fast path: per-instance monitor, no global coordination.
+    // Uses its own lock object so different CacheLocks instances never contend.
 
-                if(writers < 0 || readers < 0 || writeLocks.peekLock() < 0) {
-                    throw new IllegalStateException("someone released too many locks " + writeLocks.peekLock() + " " + readers + " " + writers);
+    private void getLockFast(LockType lockType) throws InterruptedException {
+        while (true) {
+            synchronized (localLock) {
+                if (lockType == LockType.WRITER) {
+                    if (writers == 0 && readers == 0) {
+                        writers++;
+                        return;
+                    }
+                } else {
+                    if (writers == 0) {
+                        readers++;
+                        return;
+                    }
                 }
+                localLock.wait();
+            }
+        }
+    }
 
+    private void releaseLockFast(LockType lockType) {
+        synchronized (localLock) {
+            if (lockType == LockType.WRITER) {
+                writers--;
+                localLock.notifyAll();
+            } else {
+                readers--;
+                if (readers == 0) {
+                    localLock.notifyAll();
+                }
+            }
+        }
+    }
+
+    // Slow path: shared monitor for global write coordination.
+
+    private void getLockSlow(final LockType lockType) throws InterruptedException {
+        while (true) {
+            synchronized (writeLocks) {
                 switch (lockType) {
                     case READER: {
-                        //as long as there's no writers, good to go
                         if (writers == 0 && writeLocks.peekLock() == 0) {
-                            //reader doesn't care about other writers just our own
-                            writeLocks.getLock(CacheLocks.LockType.READER);
-                            readers++; //lock it for writers
+                            writeLocks.getLock(LockType.READER);
+                            readers++;
                             return;
                         } else {
-                            //someone is writing just wait
                             writeLocks.wait();
                         }
                         break;
                     }
                     case WRITER: {
-
                         if (writers == 0 && readers == 0 && writeLocks.peekLock() == 0) {
                             writeLocks.getLock(LockType.WRITER);
-                            writers++; // lock it for readers and writers
+                            writers++;
                             return;
                         } else {
-                            //if global locks aren't blocked but others are
                             writeLocks.wait();
                         }
                         break;
@@ -65,24 +109,21 @@ class CacheLocksImpl implements CacheLocks {
         }
     }
 
-    @Override
-    public void releaseLock(LockType lockType) {
-
-        synchronized(writeLocks) {
+    private void releaseLockSlow(LockType lockType) {
+        synchronized (writeLocks) {
             switch (lockType) {
                 case READER: {
                     readers--;
-                    if((readers == 0 && writeLocks.peekLock() == 0 && writers == 0)) {
-                        writeLocks.notify();
+                    if (readers == 0 && writeLocks.peekLock() == 0 && writers == 0) {
+                        writeLocks.notifyAll();
                     }
                     break;
                 }
-
                 case WRITER: {
                     writers--;
-                    writeLocks.releaseLock(); //only write releases global lock
-                    if((writeLocks.peekLock() == 0 && writers == 0)) {
-                        writeLocks.notify();
+                    writeLocks.releaseLock();
+                    if (writeLocks.peekLock() == 0 && writers == 0) {
+                        writeLocks.notifyAll();
                     }
                     break;
                 }

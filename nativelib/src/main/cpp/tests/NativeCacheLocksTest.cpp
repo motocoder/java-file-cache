@@ -2,6 +2,7 @@
 #include <thread>
 #include <atomic>
 #include <vector>
+#include <memory>
 #include <random>
 #include <chrono>
 #include "cache/native_cache_locks.h"
@@ -177,10 +178,10 @@ static constexpr int THREADS_COUNT = 200;
 TEST(NativeCacheLocksTest, LotsOfThreads) {
     IgnoredSharedWriteLocks shared;
 
-    std::vector<NativeCacheLocks> allLocks;
+    std::vector<std::unique_ptr<NativeCacheLocks>> allLocks;
     allLocks.reserve(LOCK_COUNT);
     for (int i = 0; i < LOCK_COUNT; i++) {
-        allLocks.emplace_back(&shared);
+        allLocks.push_back(std::make_unique<NativeCacheLocks>(&shared));
     }
 
     // Build lock types: 10% writers, 90% readers
@@ -215,7 +216,7 @@ TEST(NativeCacheLocksTest, LotsOfThreads) {
                     typesIdx++;
                 }
 
-                NativeCacheLocks& lock = allLocks[idx];
+                NativeCacheLocks& lock = *allLocks[idx];
 
                 lock.getLock(isWriter);
 

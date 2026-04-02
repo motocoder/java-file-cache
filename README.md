@@ -1,6 +1,22 @@
 # Java File Cache
 
-A persistent, file-backed cache library written in Java, compatible with Android. Provides a composable, decorator-based cache system with multiple eviction strategies, thread safety options, and flexible key/value type conversions.
+A persistent, file-backed cache library written in Java, compatible with Android. Provides a composable, decorator-based cache system with multiple eviction strategies, thread safety options, and flexible key/value type conversions. Includes an optional native (C++) locking implementation via JNI for Android NDK environments.
+
+## Project Structure
+
+Multi-module Gradle build (Gradle 9.1.0, Kotlin DSL):
+
+```
+java-file-cache/
+├── core/          — Pure Java library (Java 21). Cache implementation, locking, converters, tests.
+├── nativelib/     — Android NDK library (C++23, minSdk 33). Native cache locks via JNI. Google Test.
+├── app/           — Android demo app showcasing the cache with async image loading.
+└── gradle/        — Version catalog (libs.versions.toml), wrapper.
+```
+
+- **`core/`** — The persistent file-backed cache library. JUnit 5 + FEST Assert for tests. Published as `llc.berserkr:java-file-cache:1.0.2`.
+- **`nativelib/`** — Android NDK module with C++ implementations of `NativeCacheLocks` and `NativeCache` (stub), exposed to Java via JNI. Google Test for native tests, host-built shared library for JVM tests. Depends on `:core`.
+- **`app/`** — Android application (`llc.berserkr.androidfilecache`) demonstrating the cache library with multi-threaded image caching using country flag assets.
 
 ## Overview
 
@@ -32,7 +48,7 @@ A 1024-byte transaction log at the head of the segment file enables recovery fro
 ### Design Patterns
 
 - **Decorator Pattern**: The primary composition mechanism. Wrap any `Cache` with another `Cache` to add behavior (synchronization, type conversion, eviction, etc.).
-- **Factory Pattern**: `CacheFactory` provides static factory methods that pre-wire common decorator stacks.
+- **Factory Pattern**: `CacheFactory` provides static factory methods that pre-wire common decorator stacks. `CacheLocksFactory` selects between Java and native lock implementations.
 - **Strategy Pattern**: The `Converter` interface abstracts type transformations, allowing any data type to be used as a key or value.
 
 ### Thread Safety
@@ -43,11 +59,42 @@ Thread safety is provided at multiple levels:
 |---|---|---|
 | `SynchronizedCache` | Coarse (all operations) | `synchronized` methods |
 | `CacheLocks` | Per-bucket reader/writer locks | Concurrent reads, exclusive writes |
+| `CacheLocksFactory` | Lock implementation selection | Chooses Java or native locks at runtime |
 | `LocalRandomAccess` | Per-thread file handles | `ThreadLocal<RandomAccessFile>` for r/rw modes |
 | `ConcurrentHashMap` | Hash lock registry | Thread-safe lock lookup in `StreamingFileHash` |
-| `volatile` fields | Counter visibility | `readers`/`writers` in `CacheLocks` |
 
 For most use cases, wrapping your cache in `SynchronizedCache` is sufficient. For high-read-throughput scenarios, the bucket-level `CacheLocks` allow concurrent reads from different buckets.
+
+#### CacheLocks: Java vs Native
+
+`CacheLocksFactory` provides two implementations of the `CacheLocks` interface:
+
+- **`CacheLocksImpl`** (Java) — Per-instance monitor object for the fast path (`IgnoredWriteLocks`), shared monitor for the slow path (`StandardSharedWriteLocks`).
+- **`NativeCacheLocksImpl`** (C++ via JNI) — Per-instance `std::shared_mutex` for the fast path, shared `std::mutex` + `std::condition_variable` for the slow path.
+
+Both use the same fast/slow path optimization:
+- **Fast path** (`IgnoredWriteLocks`): Per-key locking only. Writes on one key do not block reads or writes on other keys. Each lock instance has its own synchronization primitive with zero cross-instance contention.
+- **Slow path** (`StandardSharedWriteLocks`): Global write lock. When any key is being written, all reads on all keys are blocked. Retained for legacy use cases requiring strict global consistency.
+
+```java
+// Java locks (default)
+CacheLocks lock = CacheLocksFactory.createJavaWithIgnoredWriteLocks();
+
+// Native locks (when native library is available)
+CacheLocks lock = CacheLocksFactory.createNativeWithIgnoredWriteLocks();
+
+// Auto-select: native if available, otherwise Java
+CacheLocks lock = CacheLocksFactory.createWithIgnoredWriteLocks(false);
+```
+
+### Native Module (`nativelib/`)
+
+The native module provides C++ implementations exposed to Java/Android via JNI:
+
+- **`NativeCacheLocks`** — Reader-writer lock implementation using `std::shared_mutex` (fast path) or `std::mutex` + `std::condition_variable` (slow path). JNI bridge via `NativeCacheLocksImpl` in the `core` module.
+- **`NativeCache`** — Stub hash cache interface (implementation TBD). JNI bridge in `nativelib.cpp`.
+
+Native C++ tests use Google Test (fetched via CMake FetchContent). The Gradle build compiles a host-side shared library (`libnativelib`) so that JVM unit tests in `core` can load and test the native implementation directly.
 
 ---
 
@@ -56,7 +103,7 @@ For most use cases, wrapping your cache in `SynchronizedCache` is sufficient. Fo
 ### Gradle
 
 ```groovy
-implementation 'llc.berserkr:java-file-cache:1.0.0'
+implementation 'llc.berserkr:java-file-cache:1.0.2'
 ```
 
 ---
@@ -313,6 +360,22 @@ public static final <Value> Cache<String, Value> getMaxSizeExpiringFileCache(
 
 ---
 
+## Building
+
+```bash
+./gradlew build                      # Build all modules and run all tests (Java + native C++)
+./gradlew :core:test                 # Run only Java tests
+./gradlew :nativelib:runNativeTests  # Run only C++ native tests (requires cmake)
+./gradlew :app:assembleDebug         # Build the Android demo app
+./gradlew :core:publishToMavenLocal  # Publish core to local Maven repo
+
+# Run a single test class
+./gradlew :core:test --tests "BytesFileCacheTest"
+./gradlew :core:test --tests "llc.berserkr.cache.BytesFileCacheTest"
+```
+
+---
+
 ## Exception Hierarchy
 
 All exceptions extend `ResourceException`:
@@ -340,9 +403,10 @@ All exceptions extend `ResourceException`:
 
 ## Requirements
 
-- Java 8+
-- Android compatible
+- Java 21+
+- Android compatible (minSdk 30 for app, minSdk 33 for nativelib)
 - SLF4J (logging facade; bring your own binding)
+- CMake 4.2.1+ (for native module, fetches Google Test automatically)
 
 ---
 
